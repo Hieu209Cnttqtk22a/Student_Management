@@ -1,0 +1,50 @@
+# Gradle files
+.gradle/
+build/
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Log/OS Files
+*.log
+.DS_Store
+
+# Android Studio generated files and folders
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Android Studio/IntelliJ
+out/
+.idea_modules/
+*.iml
+*.iws
+*.ipr
+*.swp
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be committed to version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Miscellaneous files
+*.bak
+*.tmp
+*.swp
+*~.nib
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# System files
+Thumbs.db

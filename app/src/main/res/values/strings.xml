@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Quản lý học sinh</string>
+    <string name="home">Lớp học</string>
+    <string name="calendar">Lịch</string>
+    <string name="settings">Cài đặt</string>
+</resources>
