@@ -1,0 +1,100 @@
+package com.studentmanagement.app.ui.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.studentmanagement.app.data.entity.DailyRecordEntity
+import com.studentmanagement.app.data.repository.DailyRecordRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class StudentHistoryViewModel @Inject constructor(
+    private val dailyRecordRepository: DailyRecordRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<StudentHistoryUiState>(StudentHistoryUiState.Loading)
+    val uiState: StateFlow<StudentHistoryUiState> = _uiState.asStateFlow()
+
+    private val _pageSize = MutableStateFlow(10)
+    val pageSize: StateFlow<Int> = _pageSize.asStateFlow()
+
+    private val _currentPage = MutableStateFlow(0)
+    val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
+
+    fun loadStudentHistory(studentId: Long, startDate: String? = null, endDate: String? = null) {
+        viewModelScope.launch {
+            try {
+                _uiState.value = StudentHistoryUiState.Loading
+                
+                val flow = if (startDate != null && endDate != null) {
+                    dailyRecordRepository.getRecordsByStudentAndDateRange(studentId, startDate, endDate)
+                } else {
+                    dailyRecordRepository.getRecordsByStudent(studentId)
+                }
+
+                flow.collect { records ->
+                    if (records.isEmpty()) {
+                        _uiState.value = StudentHistoryUiState.Empty
+                    } else {
+                        val totalPages = (records.size + _pageSize.value - 1) / _pageSize.value
+                        val pagedRecords = records.chunked(_pageSize.value)
+                        
+                        _uiState.value = StudentHistoryUiState.Success(
+                            allRecords = records,
+                            pagedRecords = pagedRecords,
+                            totalPages = totalPages,
+                            averageScore = calculateAverageScore(records)
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.value = StudentHistoryUiState.Error(e.message ?: "Failed to load history")
+            }
+        }
+    }
+
+    fun setPageSize(size: Int) {
+        _pageSize.value = size
+        _currentPage.value = 0
+    }
+
+    fun nextPage() {
+        val state = _uiState.value
+        if (state is StudentHistoryUiState.Success) {
+            if (_currentPage.value < state.totalPages - 1) {
+                _currentPage.value++
+            }
+        }
+    }
+
+    fun previousPage() {
+        if (_currentPage.value > 0) {
+            _currentPage.value--
+        }
+    }
+
+    private fun calculateAverageScore(records: List<DailyRecordEntity>): Float {
+        val scoresOnly = records.mapNotNull { it.score }
+        return if (scoresOnly.isNotEmpty()) {
+            scoresOnly.average().toFloat()
+        } else {
+            0f
+        }
+    }
+}
+
+sealed class StudentHistoryUiState {
+    object Loading : StudentHistoryUiState()
+    object Empty : StudentHistoryUiState()
+    data class Success(
+        val allRecords: List<DailyRecordEntity>,
+        val pagedRecords: List<List<DailyRecordEntity>>,
+        val totalPages: Int,
+        val averageScore: Float
+    ) : StudentHistoryUiState()
+    data class Error(val message: String) : StudentHistoryUiState()
+}

@@ -11,13 +11,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.studentmanagement.app.ui.screen.home.ClassListScreen
 import com.studentmanagement.app.ui.screen.calendar.CalendarScreen
 import com.studentmanagement.app.ui.screen.settings.SettingsScreen
+import com.studentmanagement.app.ui.screen.`class`.ClassCreateScreen
+import com.studentmanagement.app.ui.screen.`class`.ClassDetailScreen
+import com.studentmanagement.app.ui.screen.student.StudentCreateScreen
+import com.studentmanagement.app.ui.screen.student.StudentDailyEditScreen
+import com.studentmanagement.app.ui.screen.student.StudentDailyHistoryListScreen
+import com.studentmanagement.app.ui.screen.student.StudentDailyDetailScreen
 
 @Composable
 fun AppNavigation() {
@@ -25,23 +33,32 @@ fun AppNavigation() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+    val showBottomBar = currentDestination?.route in listOf(
+        NavigationItem.Home.route,
+        NavigationItem.Calendar.route,
+        NavigationItem.Settings.route
+    )
+
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                NavigationItem.values().forEach { item ->
-                    NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
-                        selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
-                        onClick = {
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+            if (showBottomBar) {
+                NavigationBar {
+                    NavigationItem.values().forEach { item ->
+                        NavigationBarItem(
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label) },
+                            selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
+                            onClick = {
+                                navController.navigate(item.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    restoreState = true
+                                    launchSingleTop = true
                                 }
-                                lazyRestoreState = true
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -51,6 +68,7 @@ fun AppNavigation() {
             startDestination = NavigationItem.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            // Bottom navigation screens
             composable(NavigationItem.Home.route) {
                 ClassListScreen(navController)
             }
@@ -59,6 +77,66 @@ fun AppNavigation() {
             }
             composable(NavigationItem.Settings.route) {
                 SettingsScreen(navController)
+            }
+
+            // Class screens
+            composable("class/create") {
+                ClassCreateScreen(
+                    navController = navController,
+                    onSave = { name, subject, note ->
+                        // TODO: Save to database
+                    }
+                )
+            }
+            composable(
+                route = "class/{classId}/detail",
+                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
+                ClassDetailScreen(navController, classId)
+            }
+
+            // Student screens
+            composable(
+                route = "class/{classId}/student/create",
+                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
+                StudentCreateScreen(
+                    navController = navController,
+                    classId = classId,
+                    onSave = { name, nickname, phone, note ->
+                        // TODO: Save to database
+                    }
+                )
+            }
+            composable(
+                route = "student/{studentId}/daily/edit?date={date}",
+                arguments = listOf(
+                    navArgument("studentId") { type = NavType.LongType },
+                    navArgument("date") { 
+                        type = NavType.StringType
+                        nullable = true
+                    }
+                )
+            ) { backStackEntry ->
+                val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
+                val date = backStackEntry.arguments?.getString("date")
+                StudentDailyEditScreen(navController, studentId, date = date ?: "")
+            }
+            composable(
+                route = "student/{studentId}/history",
+                arguments = listOf(navArgument("studentId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
+                StudentDailyHistoryListScreen(navController, studentId)
+            }
+            composable(
+                route = "record/{recordId}/detail",
+                arguments = listOf(navArgument("recordId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val recordId = backStackEntry.arguments?.getLong("recordId") ?: 0L
+                StudentDailyDetailScreen(navController, recordId)
             }
         }
     }

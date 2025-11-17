@@ -67,7 +67,7 @@ fun ClassListScreen(navController: NavController) {
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* Navigate to create class */ },
+                onClick = { navController.navigate("class/create") },
                 containerColor = Primary,
                 contentColor = Color.White,
                 shape = RoundedCornerShape(16.dp)
@@ -173,8 +173,8 @@ fun ClassListScreen(navController: NavController) {
                         subject = "Toán",
                         studentCount = 10 + index,
                         nextSessionDate = "Hôm nay",
-                        onEditClick = { /* Edit */ },
-                        onDetailClick = { /* Detail */ }
+                        onEditClick = { /* TODO: Navigate to edit */ },
+                        onDetailClick = { navController.navigate("class/${index + 1}/detail") }
                     )
                 }
             }
