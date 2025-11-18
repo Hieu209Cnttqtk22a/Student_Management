@@ -39,38 +39,51 @@ class ClassEditViewModel @Inject constructor(
     fun updateClass(
         classId: Long,
         name: String,
-        scheduleDays: String? = null,
-        startTime: Int? = null,
-        repeatInterval: Int? = null,
-        repeatUnit: String? = null
+        scheduleDays: String,
+        startTime: Int?,
+        repeatInterval: Int,
+        repeatUnit: String
     ) {
         viewModelScope.launch {
             try {
+                android.util.Log.d("ClassEditViewModel", "updateClass called: classId=$classId")
                 val classEntity = classRepository.getClassById(classId)
                 if (classEntity != null) {
+                    android.util.Log.d("ClassEditViewModel", "Found class entity: ${classEntity.name}")
                     val updatedClass = classEntity.copy(
                         name = name,
-                        scheduleDaysOfWeek = scheduleDays ?: classEntity.scheduleDaysOfWeek,
-                        startTimeMinutes = startTime ?: classEntity.startTimeMinutes,
-                        repeatInterval = repeatInterval ?: classEntity.repeatInterval,
-                        repeatUnit = repeatUnit ?: classEntity.repeatUnit
+                        scheduleDaysOfWeek = scheduleDays,
+                        startTimeMinutes = startTime,
+                        repeatInterval = repeatInterval,
+                        repeatUnit = repeatUnit
                     )
                     
-                    // Kiểm tra xem lịch học có thay đổi không
+                    // Kiểm tra xem lịch học có thay đổi không (bao gồm cả startTime)
                     val scheduleChanged = 
                         updatedClass.scheduleDaysOfWeek != classEntity.scheduleDaysOfWeek ||
+                        updatedClass.startTimeMinutes != classEntity.startTimeMinutes ||
                         updatedClass.repeatInterval != classEntity.repeatInterval ||
                         updatedClass.repeatUnit != classEntity.repeatUnit
                     
+                    android.util.Log.d("ClassEditViewModel", "Schedule changed: $scheduleChanged")
+                    android.util.Log.d("ClassEditViewModel", "Old: days=${classEntity.scheduleDaysOfWeek}, time=${classEntity.startTimeMinutes}, interval=${classEntity.repeatInterval}, unit=${classEntity.repeatUnit}")
+                    android.util.Log.d("ClassEditViewModel", "New: days=$scheduleDays, time=$startTime, interval=$repeatInterval, unit=$repeatUnit")
+                    
                     // Cập nhật lớp học
                     classRepository.updateClass(updatedClass)
+                    android.util.Log.d("ClassEditViewModel", "Class updated in repository")
                     
                     // Nếu lịch học thay đổi, tạo lại lịch cho học sinh
                     if (scheduleChanged) {
+                        android.util.Log.d("ClassEditViewModel", "Regenerating schedule...")
                         scheduleService.regenerateScheduleForClass(updatedClass)
+                        android.util.Log.d("ClassEditViewModel", "Schedule regenerated")
                     }
+                } else {
+                    android.util.Log.e("ClassEditViewModel", "Class entity not found for id: $classId")
                 }
             } catch (e: Exception) {
+                android.util.Log.e("ClassEditViewModel", "Error updating class", e)
                 _uiState.value = ClassEditUiState.Error(e.message ?: "Failed to update class")
             }
         }

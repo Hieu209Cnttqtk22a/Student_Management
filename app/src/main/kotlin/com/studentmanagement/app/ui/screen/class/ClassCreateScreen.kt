@@ -21,6 +21,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -57,6 +59,12 @@ data class ScheduleItem(
     val dayOfWeek: Int = 2, // Default Monday
     val hour: String = "",
     val minute: String = ""
+)
+
+@kotlinx.serialization.Serializable
+data class ScheduleDay(
+    val day: Int,
+    val startTime: Int? = null // in minutes
 )
 
 @Composable
@@ -122,9 +130,9 @@ fun ClassCreateScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Tần suất lặp lại
+            // Giới hạn thời gian
             Text(
-                "Tần suất lặp lại",
+                "Giới hạn thời gian",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -137,7 +145,7 @@ fun ClassCreateScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Lặp lại mỗi", fontSize = 14.sp)
+                Text("Làm trong", fontSize = 14.sp)
                 
                 OutlinedTextField(
                     value = repeatInterval.value,
@@ -224,11 +232,16 @@ fun ClassCreateScreen(
                     text = "Lưu",
                     onClick = {
                         if (className.value.isNotBlank()) {
-                            // Lấy tất cả các ngày trong tuần từ scheduleItems
-                            val selectedDays = scheduleItems.map { it.dayOfWeek }.toSet()
-                            val scheduleDaysJson = Json.encodeToString(selectedDays.toList())
+                            // Create ScheduleDay objects with time for each day
+                            val scheduleDays = scheduleItems.map { item ->
+                                val startTime = if (item.hour.isNotBlank() && item.minute.isNotBlank()) {
+                                    (item.hour.toIntOrNull() ?: 0) * 60 + (item.minute.toIntOrNull() ?: 0)
+                                } else null
+                                ScheduleDay(day = item.dayOfWeek, startTime = startTime)
+                            }
+                            val scheduleDaysJson = Json.encodeToString(scheduleDays)
                             
-                            // Lấy thời gian từ item đầu tiên (hoặc có thể lưu nhiều thời gian)
+                            // Use first item's time as default startTime for backward compatibility
                             val firstItem = scheduleItems.firstOrNull()
                             val startTimeInMinutes = if (firstItem != null && 
                                 firstItem.hour.isNotBlank() && 
@@ -246,7 +259,7 @@ fun ClassCreateScreen(
                                 interval,
                                 repeatUnit.value
                             )
-                            navController.popBackStack()
+                            // Navigation is handled in AppNavigation.kt
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -264,6 +277,8 @@ fun ScheduleItemCard(
     onDelete: () -> Unit,
     canDelete: Boolean
 ) {
+    var isExpanded by remember { mutableStateOf(true) }
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -275,7 +290,9 @@ fun ScheduleItemCard(
             .padding(16.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded },
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -286,22 +303,37 @@ fun ScheduleItemCard(
                 color = Primary
             )
             
-            if (canDelete) {
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Xóa",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
-                    )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (canDelete && isExpanded) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Xóa",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
+                
+                Icon(
+                    imageVector = if (isExpanded) 
+                        Icons.Default.KeyboardArrowUp 
+                    else 
+                        Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) "Thu gọn" else "Mở rộng",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        if (isExpanded) {
+            Spacer(modifier = Modifier.height(12.dp))
 
         // Chọn thứ
         Text(
@@ -365,13 +397,15 @@ fun ScheduleItemCard(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
         }
+        }
     }
 }
 
 @Composable
 fun DayOfWeekDropdown(
     selectedDay: Int,
-    onDaySelected: (Int) -> Unit
+    onDaySelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
     val daysOfWeek = mapOf(
@@ -386,7 +420,8 @@ fun DayOfWeekDropdown(
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
     ) {
         OutlinedTextField(
             value = daysOfWeek[selectedDay] ?: "Thứ 2",

@@ -2,6 +2,7 @@ package com.studentmanagement.app.ui.screen.`class`
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -20,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -81,23 +85,35 @@ fun ClassEditScreen(
             val classEntity = (uiState as ClassEditUiState.Success).classEntity
             className.value = classEntity.name
             
-            // Parse schedule days and create schedule items
+            // Parse schedule days - try new format first, fallback to old format
             try {
-                val days = Json.decodeFromString<List<Int>>(classEntity.scheduleDaysOfWeek)
-                if (days.isNotEmpty() && scheduleItems.isEmpty()) {
-                    // Parse start time
-                    val hour = classEntity.startTimeMinutes?.let { (it / 60).toString() } ?: ""
-                    val minute = classEntity.startTimeMinutes?.let { (it % 60).toString() } ?: ""
-                    
-                    // Create schedule items for each day
+                // Try parsing new format with time per day
+                val scheduleDays = Json.decodeFromString<List<ScheduleDay>>(classEntity.scheduleDaysOfWeek)
+                if (scheduleDays.isNotEmpty() && scheduleItems.isEmpty()) {
                     scheduleItems.clear()
-                    days.forEach { day ->
-                        scheduleItems.add(ScheduleItem(day, hour, minute))
+                    scheduleDays.forEach { scheduleDay ->
+                        val hour = scheduleDay.startTime?.let { (it / 60).toString() } ?: ""
+                        val minute = scheduleDay.startTime?.let { (it % 60).toString() } ?: ""
+                        scheduleItems.add(ScheduleItem(scheduleDay.day, hour, minute))
                     }
                 }
             } catch (e: Exception) {
-                if (scheduleItems.isEmpty()) {
-                    scheduleItems.add(ScheduleItem())
+                // Fallback to old format (just array of days)
+                try {
+                    val days = Json.decodeFromString<List<Int>>(classEntity.scheduleDaysOfWeek)
+                    if (days.isNotEmpty() && scheduleItems.isEmpty()) {
+                        val hour = classEntity.startTimeMinutes?.let { (it / 60).toString() } ?: ""
+                        val minute = classEntity.startTimeMinutes?.let { (it % 60).toString() } ?: ""
+                        
+                        scheduleItems.clear()
+                        days.forEach { day ->
+                            scheduleItems.add(ScheduleItem(day, hour, minute))
+                        }
+                    }
+                } catch (e2: Exception) {
+                    if (scheduleItems.isEmpty()) {
+                        scheduleItems.add(ScheduleItem())
+                    }
                 }
             }
             
@@ -178,9 +194,9 @@ fun ClassEditScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Tần suất lặp lại
+                    // Giới hạn thời gian
                     Text(
-                        "Tần suất lặp lại",
+                        "Giới hạn thời gian",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -193,7 +209,7 @@ fun ClassEditScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Lặp lại mỗi", fontSize = 14.sp)
+                        Text("Làm trong", fontSize = 14.sp)
                         
                         OutlinedTextField(
                             value = repeatInterval.value,
@@ -279,10 +295,18 @@ fun ClassEditScreen(
                         PrimaryButton(
                             text = "Lưu",
                             onClick = {
+                                android.util.Log.d("ClassEditScreen", "Save button clicked")
                                 if (className.value.isNotBlank()) {
-                                    val selectedDays = scheduleItems.map { it.dayOfWeek }.toSet()
-                                    val scheduleDaysJson = Json.encodeToString(selectedDays.toList())
+                                    // Create ScheduleDay objects with time for each day
+                                    val scheduleDays = scheduleItems.map { item ->
+                                        val startTime = if (item.hour.isNotBlank() && item.minute.isNotBlank()) {
+                                            (item.hour.toIntOrNull() ?: 0) * 60 + (item.minute.toIntOrNull() ?: 0)
+                                        } else null
+                                        ScheduleDay(day = item.dayOfWeek, startTime = startTime)
+                                    }
+                                    val scheduleDaysJson = Json.encodeToString(scheduleDays)
                                     
+                                    // Use first item's time as default startTime for backward compatibility
                                     val firstItem = scheduleItems.firstOrNull()
                                     val startTimeInMinutes = if (firstItem != null && 
                                         firstItem.hour.isNotBlank() && 
@@ -293,15 +317,24 @@ fun ClassEditScreen(
                                     
                                     val interval = repeatInterval.value.toIntOrNull() ?: 1
                                     
+                                    android.util.Log.d("ClassEditScreen", "Calling updateClass: classId=$classId, name=${className.value}, scheduleDays=$scheduleDaysJson, startTime=$startTimeInMinutes, interval=$interval, unit=${repeatUnit.value}")
+                                    
                                     viewModel.updateClass(
                                         classId = classId,
                                         name = className.value,
-                                        scheduleDaysOfWeek = scheduleDaysJson,
-                                        startTimeMinutes = startTimeInMinutes,
+                                        scheduleDays = scheduleDaysJson,
+                                        startTime = startTimeInMinutes,
                                         repeatInterval = interval,
                                         repeatUnit = repeatUnit.value
                                     )
+                                    
+                                    // Set reload trigger to force ClassDetailScreen to reload
+                                    val currentTime = System.currentTimeMillis()
+                                    navController.previousBackStackEntry?.savedStateHandle?.set("reload_trigger", currentTime)
+                                    android.util.Log.d("ClassEditScreen", "Set reload_trigger=$currentTime and popping back")
                                     navController.popBackStack()
+                                } else {
+                                    android.util.Log.d("ClassEditScreen", "Class name is blank, not saving")
                                 }
                             },
                             modifier = Modifier.weight(1f),

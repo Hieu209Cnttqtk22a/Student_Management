@@ -40,12 +40,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -53,6 +56,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -65,6 +69,8 @@ import com.studentmanagement.app.ui.theme.PrimaryLight
 import com.studentmanagement.app.ui.viewmodel.ClassDetailViewModel
 import com.studentmanagement.app.ui.viewmodel.ClassDetailUiState
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
@@ -76,11 +82,18 @@ fun ClassDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val dailyRecords by viewModel.dailyRecords.collectAsState()
-    val selectedDate = remember { mutableStateOf(SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())) }
     val focusManager = LocalFocusManager.current
 
-    LaunchedEffect(classId, selectedDate.value) {
-        viewModel.loadClassDetail(classId, selectedDate.value)
+    // Get reload trigger from savedStateHandle
+    val reloadTrigger = navController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow("reload_trigger", 0L)
+        ?.collectAsState()
+    
+    // Load class detail when screen is first created OR when reload trigger changes
+    LaunchedEffect(classId, reloadTrigger?.value) {
+        android.util.Log.d("ClassDetailScreen", "LaunchedEffect triggered: classId=$classId, reloadTrigger=${reloadTrigger?.value}")
+        viewModel.loadClassDetail(classId)
     }
 
     val className = when (val state = uiState) {
@@ -179,17 +192,17 @@ fun ClassDetailScreen(
                     StudentGridView(
                         classId = classId,
                         students = state.students,
-                        selectedDate = selectedDate.value,
+                        scheduledDates = state.scheduledDates,
                         dailyRecords = dailyRecords,
                         viewModel = viewModel,
-                        onStudentClick = { studentId ->
-                            navController.navigate("student/$studentId/daily/edit?classId=$classId&date=${selectedDate.value}")
+                        onStudentClick = { studentId, dateString ->
+                            navController.navigate("student/$studentId/daily/edit?classId=$classId&date=$dateString")
                         },
                         onStudentDetailClick = { studentId ->
                             navController.navigate("student/$studentId/history")
                         },
                         onRefresh = {
-                            viewModel.refreshDailyRecords(classId, selectedDate.value)
+                            viewModel.refreshDailyRecords(classId)
                         },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -203,24 +216,71 @@ fun ClassDetailScreen(
 fun StudentGridView(
     classId: Long,
     students: List<com.studentmanagement.app.data.entity.StudentEntity>,
-    selectedDate: String,
-    dailyRecords: Map<Long, Float?>,
+    scheduledDates: List<LocalDate>,
+    dailyRecords: Map<Pair<Long, String>, Float?>,
     viewModel: ClassDetailViewModel,
-    onStudentClick: (Long) -> Unit,
+    onStudentClick: (Long, String) -> Unit,
     onStudentDetailClick: (Long) -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Sort students by name
-    val sortedStudents = remember(students) {
-        students.sortedBy { it.name }
+    // Sort students by first name (Tên) - always sort when students list changes
+    val sortedStudents = students.sortedBy { student ->
+        // Get the last word as first name (Tên)
+        student.name.split(" ").lastOrNull() ?: student.name
     }
     
-    // Calculate total width of all columns
-    val totalWidth = 70.dp + 50.dp + 120.dp + 100.dp + 100.dp // Chi tiết + STT + Họ + Tên + Date
+    // Check for empty scheduled dates
+    if (scheduledDates.isEmpty()) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Lớp học chưa có lịch học được cấu hình",
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Vui lòng chỉnh sửa lớp học để thêm lịch học",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        return
+    }
     
-    // Shared scroll state for synchronized horizontal scrolling
-    val horizontalScrollState = rememberScrollState()
+    // Column widths - tỉ lệ 1:1
+    val detailWidth = 40.dp  // Icon chi tiết - thu nhỏ nhất
+    val sttWidth = 50.dp     // STT - nhỏ hơn
+    val columnWidth = 100.dp // Họ, Tên, và các cột ngày - tất cả 1:1
+    
+    val leftScrollableWidth = detailWidth
+    val fixedCenterWidth = sttWidth + (columnWidth * 2) // STT + Họ + Tên
+    val rightScrollableWidth = columnWidth * scheduledDates.size
+    val totalWidth = leftScrollableWidth + fixedCenterWidth + rightScrollableWidth
+    
+    // Shared scroll states
+    val leftScrollState = rememberScrollState()
+    val rightScrollState = rememberScrollState()
     
     // Get screen width
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -229,64 +289,71 @@ fun StudentGridView(
     // Only enable scroll if content is wider than screen
     val enableScroll = totalWidth > screenWidth
     
+    // Tìm ngày gần nhất với hiện tại để scroll đến
+    val today = LocalDate.now()
+    val nearestDateIndex = remember(scheduledDates) {
+        scheduledDates.indexOfFirst { it >= today }.takeIf { it >= 0 } ?: (scheduledDates.size - 1)
+    }
+    
+    // Auto scroll to nearest date on first load
+    LaunchedEffect(nearestDateIndex) {
+        if (enableScroll && nearestDateIndex >= 0) {
+            val scrollPosition = (nearestDateIndex * columnWidth.value).toInt()
+            rightScrollState.scrollTo(scrollPosition)
+        }
+    }
+    
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(80.dp)
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(Primary, PrimaryLight)
-                    )
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    "Buổi học ngày",
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
-                Text(
-                    selectedDate,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-        }
-
-        // Grid table with synchronized horizontal scroll
+        // Grid table with independent scroll for left and right sections
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header row - scrollable horizontally only if needed
+            // Header row - scrollable left + fixed center + scrollable right
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(
-                        if (enableScroll) {
-                            Modifier.horizontalScroll(horizontalScrollState)
-                        } else {
-                            Modifier
-                        }
-                    )
+                    .height(45.dp)
             ) {
-                GridHeaderCell("Chi tiết", width = 70.dp)
-                GridHeaderCell("STT", width = 50.dp)
-                GridHeaderCell("Họ", width = 120.dp)
-                GridHeaderCell("Tên", width = 100.dp)
-                GridHeaderCell(selectedDate, width = 100.dp)
+                // Scrollable left section (Icon only - no text)
+                Row(
+                    modifier = if (enableScroll) {
+                        Modifier.horizontalScroll(leftScrollState)
+                    } else {
+                        Modifier
+                    }
+                ) {
+                    GridHeaderCell("", width = detailWidth) // Empty text
+                }
+                
+                // Fixed center section (STT + Họ + Tên) - tỉ lệ 1:1
+                GridHeaderCell("STT", width = sttWidth)
+                GridHeaderCell("Họ", width = columnWidth)
+                GridHeaderCell("Tên", width = columnWidth)
+                
+                // Scrollable right section (dates only)
+                Row(
+                    modifier = if (enableScroll) {
+                        Modifier
+                            .weight(1f)
+                            .horizontalScroll(rightScrollState)
+                    } else {
+                        Modifier.weight(1f)
+                    }
+                ) {
+                    // Dynamically generate date column headers
+                    scheduledDates.forEach { date ->
+                        val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                        val dateString = date.format(dateFormatter)
+                        GridHeaderCell(dateString, width = columnWidth)
+                    }
+                }
             }
             
-            // Data rows - scrollable vertically and horizontally (synchronized)
+            // Data rows - scrollable vertically with independent horizontal scroll
             LazyColumn(
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -295,12 +362,17 @@ fun StudentGridView(
                     EditableStudentRow(
                         index = index + 1,
                         student = student,
-                        score = dailyRecords[student.id],
+                        scheduledDates = scheduledDates,
+                        dailyRecords = dailyRecords,
                         viewModel = viewModel,
-                        horizontalScrollState = horizontalScrollState,
+                        leftScrollState = leftScrollState,
+                        rightScrollState = rightScrollState,
+                        detailWidth = detailWidth,
+                        sttWidth = sttWidth,
+                        columnWidth = columnWidth,
                         enableScroll = enableScroll,
-                        onStudentClick = { 
-                            onStudentClick(student.id)
+                        onStudentClick = { dateString ->
+                            onStudentClick(student.id, dateString)
                             // Refresh after returning from edit screen
                             onRefresh()
                         },
@@ -313,8 +385,13 @@ fun StudentGridView(
                     NewStudentRow(
                         index = sortedStudents.size + 1,
                         classId = classId,
+                        scheduledDates = scheduledDates,
                         viewModel = viewModel,
-                        horizontalScrollState = horizontalScrollState,
+                        leftScrollState = leftScrollState,
+                        rightScrollState = rightScrollState,
+                        detailWidth = detailWidth,
+                        sttWidth = sttWidth,
+                        columnWidth = columnWidth,
                         enableScroll = enableScroll
                     )
                 }
@@ -327,11 +404,16 @@ fun StudentGridView(
 fun EditableStudentRow(
     index: Int,
     student: StudentEntity,
-    score: Float?,
+    scheduledDates: List<LocalDate>,
+    dailyRecords: Map<Pair<Long, String>, Float?>,
     viewModel: ClassDetailViewModel,
-    horizontalScrollState: ScrollState,
+    leftScrollState: ScrollState,
+    rightScrollState: ScrollState,
+    detailWidth: androidx.compose.ui.unit.Dp,
+    sttWidth: androidx.compose.ui.unit.Dp,
+    columnWidth: androidx.compose.ui.unit.Dp,
     enableScroll: Boolean,
-    onStudentClick: () -> Unit,
+    onStudentClick: (String) -> Unit,
     onStudentDetailClick: (Long) -> Unit
 ) {
     val nameParts = student.name.split(" ")
@@ -357,59 +439,76 @@ fun EditableStudentRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (enableScroll) {
-                    Modifier.horizontalScroll(horizontalScrollState)
-                } else {
-                    Modifier
-                }
-            )
+            .height(45.dp)
     ) {
-        // Detail icon
-        Box(
-            modifier = Modifier
-                .width(70.dp)
-                .height(45.dp)
-                .border(
-                    width = 0.5.dp,
-                    color = Color.Gray
-                )
-                .clickable { onStudentDetailClick(student.id) }
-                .background(Color.White),
-            contentAlignment = Alignment.Center
+        // Scrollable left section (Chi tiết only)
+        Row(
+            modifier = if (enableScroll) {
+                Modifier.horizontalScroll(leftScrollState)
+            } else {
+                Modifier
+            }
         ) {
-            Icon(
-                imageVector = Icons.Default.Visibility,
-                contentDescription = "Chi tiết",
-                modifier = Modifier.size(18.dp),
-                tint = Primary
-            )
+            // Detail icon
+            Box(
+                modifier = Modifier
+                    .width(detailWidth)
+                    .height(45.dp)
+                    .border(
+                        width = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    .clickable { onStudentDetailClick(student.id) }
+                    .background(MaterialTheme.colorScheme.surface),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Visibility,
+                    contentDescription = "Chi tiết",
+                    modifier = Modifier.size(18.dp),
+                    tint = Primary
+                )
+            }
         }
         
-        // STT
-        GridCell(index.toString(), 50.dp) { focusManager.clearFocus() }
+        // Fixed center section (STT + Họ + Tên) - tỉ lệ 1:1
+        GridCell(index.toString(), sttWidth) { focusManager.clearFocus() }
         
-        // Last name - editable
         EditableCellWithFocusLoss(
             value = lastName,
             onValueChange = { lastName = it },
             onFocusLost = { saveIfChanged() },
-            width = 120.dp,
+            width = columnWidth,
             placeholder = "Họ"
         )
         
-        // First name - editable
         EditableCellWithFocusLoss(
             value = firstName,
             onValueChange = { firstName = it },
             onFocusLost = { saveIfChanged() },
-            width = 100.dp,
+            width = columnWidth,
             placeholder = "Tên"
         )
         
-        // Date column - show score if available
-        val scoreText = score?.let { String.format("%.1f", it) } ?: ""
-        GridCell(scoreText, 100.dp) { onStudentClick() }
+        // Scrollable right section (dates only)
+        Row(
+            modifier = if (enableScroll) {
+                Modifier
+                    .weight(1f)
+                    .horizontalScroll(rightScrollState)
+            } else {
+                Modifier.weight(1f)
+            }
+        ) {
+            // Date columns - show score if available for each date
+            scheduledDates.forEach { date ->
+                val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                val dateString = date.format(dateFormatter)
+                val score = dailyRecords[Pair(student.id, dateString)]
+                val scoreText = score?.let { String.format("%.1f", it) } ?: ""
+                GridCell(scoreText, columnWidth) { onStudentClick(dateString) }
+            }
+        }
     }
 }
 
@@ -417,8 +516,13 @@ fun EditableStudentRow(
 fun NewStudentRow(
     index: Int,
     classId: Long,
+    scheduledDates: List<LocalDate>,
     viewModel: ClassDetailViewModel,
-    horizontalScrollState: ScrollState,
+    leftScrollState: ScrollState,
+    rightScrollState: ScrollState,
+    detailWidth: androidx.compose.ui.unit.Dp,
+    sttWidth: androidx.compose.ui.unit.Dp,
+    columnWidth: androidx.compose.ui.unit.Dp,
     enableScroll: Boolean
 ) {
     var lastName by remember { mutableStateOf("") }
@@ -439,61 +543,75 @@ fun NewStudentRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (enableScroll) {
-                    Modifier.horizontalScroll(horizontalScrollState)
-                } else {
-                    Modifier
-                }
-            )
+            .height(45.dp)
     ) {
-        // Empty detail cell
-        Box(
-            modifier = Modifier
-                .width(70.dp)
-                .height(45.dp)
-                .border(
-                    width = 0.5.dp,
-                    color = Color.Gray
-                )
-                .background(Color(0xFFF5F5F5)),
-            contentAlignment = Alignment.Center
+        // Scrollable left section (Chi tiết only)
+        Row(
+            modifier = if (enableScroll) {
+                Modifier.horizontalScroll(leftScrollState)
+            } else {
+                Modifier
+            }
         ) {
-            // Empty
+            // Empty detail cell
+            Box(
+                modifier = Modifier
+                    .width(detailWidth)
+                    .height(45.dp)
+                    .border(
+                        width = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                // Empty
+            }
         }
         
-        // STT
-        GridCell(index.toString(), 50.dp) { focusManager.clearFocus() }
+        // Fixed center section (STT + Họ + Tên) - tỉ lệ 1:1
+        GridCell(index.toString(), sttWidth) { focusManager.clearFocus() }
         
-        // Last name input
         EditableCellWithFocusLoss(
             value = lastName,
             onValueChange = { lastName = it },
             onFocusLost = { saveIfFilled() },
-            width = 120.dp,
+            width = columnWidth,
             placeholder = "Họ"
         )
         
-        // First name input
         EditableCellWithFocusLoss(
             value = firstName,
             onValueChange = { firstName = it },
             onFocusLost = { saveIfFilled() },
-            width = 100.dp,
+            width = columnWidth,
             placeholder = "Tên"
         )
         
-        // Empty date cell
-        Box(
-            modifier = Modifier
-                .width(100.dp)
-                .height(45.dp)
-                .border(
-                    width = 0.5.dp,
-                    color = Color.Gray
+        // Scrollable right section (dates only)
+        Row(
+            modifier = if (enableScroll) {
+                Modifier
+                    .weight(1f)
+                    .horizontalScroll(rightScrollState)
+            } else {
+                Modifier.weight(1f)
+            }
+        ) {
+            // Empty date cells for all scheduled dates
+            scheduledDates.forEach { _ ->
+                Box(
+                    modifier = Modifier
+                        .width(columnWidth)
+                        .height(45.dp)
+                        .border(
+                            width = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
-                .background(Color(0xFFF5F5F5))
-        )
+            }
+        }
     }
 }
 
@@ -553,9 +671,9 @@ fun EditableCellWithFocusLoss(
             .height(45.dp)
             .border(
                 width = 0.5.dp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.outline
             )
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 8.dp)
             .clickable { 
                 // Prevent click from propagating to parent
@@ -568,7 +686,7 @@ fun EditableCellWithFocusLoss(
             textStyle = androidx.compose.ui.text.TextStyle(
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onSurface
             ),
             singleLine = true,
             modifier = Modifier
@@ -583,7 +701,7 @@ fun EditableCellWithFocusLoss(
                     Text(
                         text = placeholder,
                         fontSize = 13.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -602,9 +720,9 @@ fun GridHeaderCell(text: String, width: androidx.compose.ui.unit.Dp) {
             .height(45.dp)
             .border(
                 width = 0.5.dp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.outline
             )
-            .background(Primary.copy(alpha = 0.15f)),
+            .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -612,7 +730,8 @@ fun GridHeaderCell(text: String, width: androidx.compose.ui.unit.Dp) {
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            maxLines = 2
+            maxLines = 2,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
         )
     }
 }
@@ -629,9 +748,9 @@ fun GridCell(
             .height(45.dp)
             .border(
                 width = 0.5.dp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.outline
             )
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
@@ -640,7 +759,8 @@ fun GridCell(
                 text = content,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
-                maxLines = 1
+                maxLines = 1,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }

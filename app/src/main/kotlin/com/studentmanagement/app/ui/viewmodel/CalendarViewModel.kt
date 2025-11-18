@@ -1,5 +1,6 @@
 package com.studentmanagement.app.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.studentmanagement.app.data.datastore.SettingsDataStore
@@ -66,6 +67,7 @@ class CalendarViewModel @Inject constructor(
     fun selectDate(date: LocalDate) {
         _uiState.value = _uiState.value.copy(
             selectedDate = date,
+            currentYearMonth = YearMonth.from(date),
             classesForSelectedDate = getClassesForDate(date, _uiState.value.allClasses)
         )
     }
@@ -128,11 +130,70 @@ class CalendarViewModel @Inject constructor(
     }
 
     private fun getClassesForDate(date: LocalDate, allClasses: List<ClassEntity>): List<ClassEntity> {
+        Log.d("CalendarViewModel", "getClassesForDate: date=$date, allClasses.size=${allClasses.size}")
+        
         val dayOfWeek = date.dayOfWeek.value // 1 = Monday, 7 = Sunday
-        return allClasses.filter { classEntity ->
-            val scheduledDays = parseScheduledDays(classEntity.scheduleDaysOfWeek)
-            scheduledDays.contains(dayOfWeek)
+        // Convert LocalDate format to UI format for comparison
+        val dayOfWeekUI = when (dayOfWeek) {
+            1 -> 2  // Monday -> Thứ 2
+            2 -> 3  // Tuesday -> Thứ 3
+            3 -> 4  // Wednesday -> Thứ 4
+            4 -> 5  // Thursday -> Thứ 5
+            5 -> 6  // Friday -> Thứ 6
+            6 -> 7  // Saturday -> Thứ 7
+            7 -> 1  // Sunday -> Chủ nhật
+            else -> dayOfWeek
         }
+        
+        Log.d("CalendarViewModel", "dayOfWeekUI=$dayOfWeekUI")
+        
+        val filtered = allClasses.filter { classEntity ->
+            val scheduledDays = parseScheduledDays(classEntity.scheduleDaysOfWeek)
+            val isScheduledDay = scheduledDays.contains(dayOfWeekUI)
+            
+            // Check if date is within the class duration
+            val isWithinDuration = isDateWithinClassDuration(date, classEntity)
+            
+            Log.d("CalendarViewModel", "Class: ${classEntity.name}, scheduledDays=$scheduledDays, isScheduledDay=$isScheduledDay, isWithinDuration=$isWithinDuration")
+            
+            isScheduledDay && isWithinDuration
+        }
+        
+        Log.d("CalendarViewModel", "Filtered classes: ${filtered.size}")
+        return filtered
+    }
+    
+    /**
+     * Kiểm tra xem ngày có nằm trong khoảng thời gian hoạt động của class không
+     */
+    private fun isDateWithinClassDuration(date: LocalDate, classEntity: ClassEntity): Boolean {
+        // Ngày bắt đầu của class
+        val startDate = java.time.Instant.ofEpochMilli(classEntity.createdAt)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+        
+        Log.d("CalendarViewModel", "isDateWithinClassDuration: date=$date, startDate=$startDate, repeatInterval=${classEntity.repeatInterval}, repeatUnit=${classEntity.repeatUnit}")
+        
+        // Nếu ngày kiểm tra trước ngày tạo class, return false
+        if (date.isBefore(startDate)) {
+            Log.d("CalendarViewModel", "Date is before startDate")
+            return false
+        }
+        
+        // Tính ngày kết thúc dựa trên repeatInterval và repeatUnit
+        val endDate = when (classEntity.repeatUnit) {
+            "WEEK" -> startDate.plusWeeks(classEntity.repeatInterval.toLong())
+            "MONTH" -> startDate.plusMonths(classEntity.repeatInterval.toLong())
+            "YEAR" -> startDate.plusYears(classEntity.repeatInterval.toLong())
+            else -> startDate.plusWeeks(classEntity.repeatInterval.toLong())
+        }
+        
+        Log.d("CalendarViewModel", "endDate=$endDate")
+        
+        // Kiểm tra ngày có nằm trong khoảng [startDate, endDate]
+        val result = !date.isAfter(endDate)
+        Log.d("CalendarViewModel", "isWithinDuration=$result")
+        return result
     }
 
     fun getClassesForMonth(yearMonth: YearMonth): Map<Int, List<ClassEntity>> {
@@ -168,8 +229,18 @@ class CalendarViewModel @Inject constructor(
         if (scheduleDaysJson.isEmpty()) return emptyList()
         return try {
             val jsonArray = JSONArray(scheduleDaysJson)
-            List(jsonArray.length()) { i -> jsonArray.getInt(i) }
+            
+            // Try to parse as new format first (array of ScheduleDay objects)
+            if (jsonArray.length() > 0 && jsonArray.getJSONObject(0).has("day")) {
+                List(jsonArray.length()) { i -> 
+                    jsonArray.getJSONObject(i).getInt("day")
+                }
+            } else {
+                // Fallback to old format (array of integers)
+                List(jsonArray.length()) { i -> jsonArray.getInt(i) }
+            }
         } catch (e: Exception) {
+            Log.e("CalendarViewModel", "Error parsing scheduled days: $scheduleDaysJson", e)
             emptyList()
         }
     }

@@ -16,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class StudentDailyEditViewModel @Inject constructor(
     private val dailyRecordRepository: DailyRecordRepository,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val studentRepository: com.studentmanagement.app.data.repository.StudentRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<StudentDailyEditUiState>(StudentDailyEditUiState.Loading)
@@ -36,6 +37,9 @@ class StudentDailyEditViewModel @Inject constructor(
 
     private val _selectedImages = MutableStateFlow<List<String>>(emptyList())
     val selectedImages: StateFlow<List<String>> = _selectedImages.asStateFlow()
+    
+    private val _studentName = MutableStateFlow("")
+    val studentName: StateFlow<String> = _studentName.asStateFlow()
 
     init {
         loadAvailableTags()
@@ -57,6 +61,11 @@ class StudentDailyEditViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _uiState.value = StudentDailyEditUiState.Loading
+                
+                // Load student name
+                val student = studentRepository.getStudentById(studentId)
+                _studentName.value = student?.name ?: ""
+                
                 val record = dailyRecordRepository.getDailyRecord(studentId, date)
                 
                 if (record != null) {

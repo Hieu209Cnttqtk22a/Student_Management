@@ -185,4 +185,62 @@ class ScheduleServiceTest {
             }
         })
     }
+    
+    @Test
+    fun `generateScheduleForClass with invalid class ID throws IllegalArgumentException`() = runTest {
+        // Given: A class with invalid ID (id = 0)
+        val classEntity = ClassEntity(
+            id = 0L,
+            name = "Math 101",
+            scheduleDaysOfWeek = "[2,4,6]",
+            startTimeMinutes = 480,
+            repeatInterval = 1,
+            repeatUnit = "WEEK"
+        )
+        
+        // When & Then: Should throw IllegalArgumentException
+        val exception = try {
+            scheduleService.generateScheduleForClass(classEntity)
+            null
+        } catch (e: IllegalArgumentException) {
+            e
+        }
+        
+        assertNotNull("Expected IllegalArgumentException to be thrown", exception)
+        assertTrue(
+            "Exception message should mention invalid class ID",
+            exception?.message?.contains("Invalid class ID") == true
+        )
+        
+        // And: Should not attempt to access repository
+        verify(studentRepository, never()).getStudentsByClass(any())
+        verify(dailyRecordRepository, never()).createBulkRecords(any())
+    }
+    
+    @Test
+    fun `generateScheduleForClass with negative class ID throws IllegalArgumentException`() = runTest {
+        // Given: A class with negative ID
+        val classEntity = ClassEntity(
+            id = -1L,
+            name = "Math 101",
+            scheduleDaysOfWeek = "[2,4,6]",
+            startTimeMinutes = 480,
+            repeatInterval = 1,
+            repeatUnit = "WEEK"
+        )
+        
+        // When & Then: Should throw IllegalArgumentException
+        val exception = try {
+            scheduleService.generateScheduleForClass(classEntity)
+            null
+        } catch (e: IllegalArgumentException) {
+            e
+        }
+        
+        assertNotNull("Expected IllegalArgumentException to be thrown", exception)
+        assertTrue(
+            "Exception message should mention invalid class ID",
+            exception?.message?.contains("Invalid class ID") == true
+        )
+    }
 }

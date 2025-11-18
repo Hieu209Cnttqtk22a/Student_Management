@@ -90,13 +90,17 @@ fun AppNavigation() {
                     navController = navController,
                     onSave = { name, scheduleDays, startTime, repeatInterval, repeatUnit ->
                         viewModel.createClass(
-                            ClassEntity(
+                            classEntity = ClassEntity(
                                 name = name,
                                 scheduleDaysOfWeek = scheduleDays,
                                 startTimeMinutes = startTime,
                                 repeatInterval = repeatInterval,
                                 repeatUnit = repeatUnit
-                            )
+                            ),
+                            onComplete = {
+                                // Navigate back after class is created successfully
+                                navController.popBackStack()
+                            }
                         )
                     }
                 )

@@ -101,35 +101,23 @@ fun ClassCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Action buttons
+            // Action buttons - 2 nút lớn
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                IconButton(
+                SecondaryButton(
+                    text = "Chỉnh sửa",
                     onClick = onEditClick,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Chỉnh sửa",
-                        tint = Primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
+                    modifier = Modifier.weight(1f)
+                )
+                PrimaryButton(
+                    text = "Chi tiết",
                     onClick = onDetailClick,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Chi tiết",
-                        tint = Secondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }

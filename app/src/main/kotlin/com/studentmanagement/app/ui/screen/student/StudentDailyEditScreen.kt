@@ -57,7 +57,6 @@ fun StudentDailyEditScreen(
     navController: NavController,
     studentId: Long,
     classId: Long = 0,
-    studentName: String = "",
     date: String = "",
     viewModel: com.studentmanagement.app.ui.viewmodel.StudentDailyEditViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
@@ -66,6 +65,7 @@ fun StudentDailyEditScreen(
     val note by viewModel.note.collectAsState()
     val availableTagsFromDb by viewModel.availableTags.collectAsState()
     val selectedTagsFromDb by viewModel.selectedTags.collectAsState()
+    val studentName by viewModel.studentName.collectAsState()
     
     // Convert date from dd/MM/yyyy to yyyy-MM-dd for database
     val dbDate = remember(date) {

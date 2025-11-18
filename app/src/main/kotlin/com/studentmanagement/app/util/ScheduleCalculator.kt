@@ -64,7 +64,9 @@ class ScheduleCalculator @Inject constructor() {
     
     /**
      * Parse JSON scheduleDaysOfWeek thành List<Int>
-     * Format: "[2,4,6]" -> [2, 4, 6]
+     * Supports both old format (array of integers) and new format (array of ScheduleDay objects)
+     * Old format: "[2,4,6]" -> [2, 4, 6]
+     * New format: "[{"day":2,"startTime":null},{"day":4,"startTime":540}]" -> [2, 4]
      */
     private fun parseScheduleDaysOfWeek(scheduleDaysOfWeek: String): List<Int> {
         if (scheduleDaysOfWeek.isBlank()) {
@@ -75,7 +77,16 @@ class ScheduleCalculator @Inject constructor() {
             val jsonArray = JSONArray(scheduleDaysOfWeek)
             val result = mutableListOf<Int>()
             for (i in 0 until jsonArray.length()) {
-                result.add(jsonArray.getInt(i))
+                val item = jsonArray.get(i)
+                val day = when (item) {
+                    is Int -> item // Old format: direct integer
+                    is org.json.JSONObject -> item.getInt("day") // New format: ScheduleDay object
+                    else -> null
+                }
+                
+                if (day != null && day in 1..7) {
+                    result.add(day)
+                }
             }
             result
         } catch (e: Exception) {

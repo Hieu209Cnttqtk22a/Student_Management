@@ -1,5 +1,6 @@
 package com.studentmanagement.app.service
 
+import android.util.Log
 import com.studentmanagement.app.data.entity.ClassEntity
 import com.studentmanagement.app.data.entity.DailyRecordEntity
 import com.studentmanagement.app.data.repository.DailyRecordRepository
@@ -16,20 +17,36 @@ class ScheduleService @Inject constructor(
     private val scheduleCalculator: ScheduleCalculator
 ) {
     
+    companion object {
+        private const val TAG = "ScheduleService"
+    }
+    
     /**
      * Tạo lịch học cho lớp mới
      * Tạo DailyRecord cho tất cả học sinh trong lớp theo lịch đã thiết lập
      * 
      * @param classEntity Lớp học cần tạo lịch
+     * @throws IllegalArgumentException if class ID is invalid (id <= 0)
      */
     suspend fun generateScheduleForClass(classEntity: ClassEntity) {
+        // Validate class ID
+        if (classEntity.id <= 0) {
+            Log.e(TAG, "Invalid class ID: ${classEntity.id}")
+            throw IllegalArgumentException("Invalid class ID: ${classEntity.id}. Class must be saved to database before generating schedule.")
+        }
+        
+        Log.d(TAG, "Generating schedule for class: ${classEntity.name} (ID: ${classEntity.id})")
+        
         // Lấy danh sách học sinh trong lớp
         val students = studentRepository.getStudentsByClass(classEntity.id).first()
         
         // Nếu lớp chưa có học sinh, không tạo records
         if (students.isEmpty()) {
+            Log.d(TAG, "No students in class ${classEntity.id}, skipping schedule generation")
             return
         }
+        
+        Log.d(TAG, "Found ${students.size} students in class ${classEntity.id}")
         
         // Tính toán các ngày học dựa trên lịch
         val scheduleDates = try {
@@ -67,7 +84,11 @@ class ScheduleService @Inject constructor(
         
         // Bulk insert tất cả records
         if (recordsToCreate.isNotEmpty()) {
+            Log.d(TAG, "Creating ${recordsToCreate.size} daily records for class ${classEntity.id}")
             dailyRecordRepository.createBulkRecords(recordsToCreate)
+            Log.d(TAG, "Successfully created schedule for class ${classEntity.id}")
+        } else {
+            Log.d(TAG, "No new records to create for class ${classEntity.id}")
         }
     }
     

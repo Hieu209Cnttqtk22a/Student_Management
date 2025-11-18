@@ -24,7 +24,8 @@ data class DailyRecordWithDetails(
 
 @HiltViewModel
 class StudentHistoryViewModel @Inject constructor(
-    private val dailyRecordRepository: DailyRecordRepository
+    private val dailyRecordRepository: DailyRecordRepository,
+    private val studentRepository: com.studentmanagement.app.data.repository.StudentRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<StudentHistoryUiState>(StudentHistoryUiState.Loading)
@@ -35,11 +36,52 @@ class StudentHistoryViewModel @Inject constructor(
 
     private val _currentPage = MutableStateFlow(0)
     val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
+    
+    private val _studentName = MutableStateFlow("")
+    val studentName: StateFlow<String> = _studentName.asStateFlow()
+    
+    fun deleteStudent(studentId: Long, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                val student = studentRepository.getStudentById(studentId)
+                if (student != null) {
+                    studentRepository.deleteStudent(student)
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                _uiState.value = StudentHistoryUiState.Error(e.message ?: "Failed to delete student")
+            }
+        }
+    }
+    
+    fun deleteDailyRecord(recordId: Long, studentId: Long, classId: Long, date: String) {
+        viewModelScope.launch {
+            try {
+                // Create entity to delete
+                val record = com.studentmanagement.app.data.entity.DailyRecordEntity(
+                    id = recordId,
+                    studentId = studentId,
+                    classId = classId,
+                    date = date,
+                    score = null,
+                    note = null
+                )
+                dailyRecordRepository.deleteDailyRecord(record)
+                // Reload will happen automatically via Flow
+            } catch (e: Exception) {
+                _uiState.value = StudentHistoryUiState.Error(e.message ?: "Failed to delete record")
+            }
+        }
+    }
 
     fun loadStudentHistory(studentId: Long, startDate: String? = null, endDate: String? = null) {
         viewModelScope.launch {
             try {
                 _uiState.value = StudentHistoryUiState.Loading
+                
+                // Load student name
+                val student = studentRepository.getStudentById(studentId)
+                _studentName.value = student?.name ?: ""
                 
                 val flow = if (startDate != null && endDate != null) {
                     dailyRecordRepository.getRecordsByStudentAndDateRange(studentId, startDate, endDate)

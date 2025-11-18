@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -54,12 +55,12 @@ import com.studentmanagement.app.ui.viewmodel.StudentHistoryUiState
 fun StudentDailyHistoryListScreen(
     navController: NavController,
     studentId: Long,
-    studentName: String = "",
     viewModel: StudentHistoryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentPage by viewModel.currentPage.collectAsState()
     val pageSize by viewModel.pageSize.collectAsState()
+    val studentName by viewModel.studentName.collectAsState()
 
     LaunchedEffect(studentId) {
         viewModel.loadStudentHistory(studentId)
@@ -96,6 +97,43 @@ fun StudentDailyHistoryListScreen(
                             imageVector = Icons.Default.FilterList,
                             contentDescription = "Lọc",
                             tint = Color.White
+                        )
+                    }
+                    // Delete student button
+                    var showDeleteDialog by remember { mutableStateOf(false) }
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Xóa học sinh",
+                            tint = Color.White
+                        )
+                    }
+                    
+                    // Delete confirmation dialog
+                    if (showDeleteDialog) {
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { showDeleteDialog = false },
+                            title = { Text("Xóa học sinh") },
+                            text = { Text("Bạn có chắc chắn muốn xóa học sinh \"$studentName\"? Tất cả dữ liệu học tập sẽ bị xóa.") },
+                            confirmButton = {
+                                androidx.compose.material3.TextButton(
+                                    onClick = {
+                                        viewModel.deleteStudent(studentId) {
+                                            navController.popBackStack()
+                                        }
+                                        showDeleteDialog = false
+                                    }
+                                ) {
+                                    Text("Xóa", color = MaterialTheme.colorScheme.error)
+                                }
+                            },
+                            dismissButton = {
+                                androidx.compose.material3.TextButton(
+                                    onClick = { showDeleteDialog = false }
+                                ) {
+                                    Text("Hủy")
+                                }
+                            }
                         )
                     }
                 },
@@ -274,6 +312,8 @@ fun StudentDailyHistoryListScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(currentPageRecords) { record ->
+                            var showDeleteRecordDialog by remember { mutableStateOf(false) }
+                            
                             DailyRecordCard(
                                 date = record.date,
                                 score = record.score,
@@ -281,8 +321,42 @@ fun StudentDailyHistoryListScreen(
                                 imageCount = record.imageUrls.size,
                                 onClick = { 
                                     navController.navigate("record/${record.id}/detail")
+                                },
+                                onDelete = {
+                                    showDeleteRecordDialog = true
                                 }
                             )
+                            
+                            // Delete record confirmation dialog
+                            if (showDeleteRecordDialog) {
+                                androidx.compose.material3.AlertDialog(
+                                    onDismissRequest = { showDeleteRecordDialog = false },
+                                    title = { Text("Xóa điểm") },
+                                    text = { Text("Bạn có chắc chắn muốn xóa điểm ngày ${record.date}?") },
+                                    confirmButton = {
+                                        androidx.compose.material3.TextButton(
+                                            onClick = {
+                                                viewModel.deleteDailyRecord(
+                                                    recordId = record.id,
+                                                    studentId = record.studentId,
+                                                    classId = record.classId,
+                                                    date = record.date
+                                                )
+                                                showDeleteRecordDialog = false
+                                            }
+                                        ) {
+                                            Text("Xóa", color = MaterialTheme.colorScheme.error)
+                                        }
+                                    },
+                                    dismissButton = {
+                                        androidx.compose.material3.TextButton(
+                                            onClick = { showDeleteRecordDialog = false }
+                                        ) {
+                                            Text("Hủy")
+                                        }
+                                    }
+                                )
+                            }
                         }
 
                         if (state.totalPages > 1) {

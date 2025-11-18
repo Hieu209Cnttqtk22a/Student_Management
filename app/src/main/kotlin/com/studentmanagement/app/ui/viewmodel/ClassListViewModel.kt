@@ -1,5 +1,6 @@
 package com.studentmanagement.app.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.studentmanagement.app.data.entity.ClassEntity
@@ -9,13 +10,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ClassListViewModel @Inject constructor(
     private val classRepository: ClassRepository,
-    private val scheduleService: ScheduleService
+    private val scheduleService: ScheduleService,
+    private val studentRepository: com.studentmanagement.app.data.repository.StudentRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ClassListUiState>(ClassListUiState.Loading)
@@ -28,27 +31,52 @@ class ClassListViewModel @Inject constructor(
     fun loadClasses() {
         viewModelScope.launch {
             try {
-                classRepository.getAllClasses().collect { classes ->
-                    _uiState.value = if (classes.isEmpty()) {
-                        ClassListUiState.Empty
-                    } else {
-                        ClassListUiState.Success(classes)
+                Log.d("ClassListViewModel", "Loading classes...")
+                val classes = classRepository.getAllClasses().first()
+                Log.d("ClassListViewModel", "Loaded ${classes.size} classes")
+                
+                if (classes.isEmpty()) {
+                    _uiState.value = ClassListUiState.Empty
+                } else {
+                    // Get student count for each class
+                    val studentCounts = mutableMapOf<Long, Int>()
+                    classes.forEach { classEntity ->
+                        val count = studentRepository.getStudentCountByClass(classEntity.id).first()
+                        studentCounts[classEntity.id] = count
                     }
+                    _uiState.value = ClassListUiState.Success(classes, studentCounts)
                 }
             } catch (e: Exception) {
+                Log.e("ClassListViewModel", "Failed to load classes", e)
                 _uiState.value = ClassListUiState.Error(e.message ?: "Unknown error")
             }
         }
     }
 
-    fun createClass(classEntity: ClassEntity) {
+    fun createClass(classEntity: ClassEntity, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             try {
-                classRepository.createClass(classEntity)
-                // Generate schedule for the newly created class
-                scheduleService.generateScheduleForClass(classEntity)
+                Log.d("ClassListViewModel", "Creating class: ${classEntity.name}")
+                // Create class and capture the returned ID
+                val newClassId = classRepository.createClass(classEntity)
+                Log.d("ClassListViewModel", "Class created with ID: $newClassId")
+                
+                // Create a copy of classEntity with the actual ID
+                val classWithId = classEntity.copy(id = newClassId)
+                
+                // Generate schedule for the newly created class with valid ID
+                scheduleService.generateScheduleForClass(classWithId)
+                Log.d("ClassListViewModel", "Schedule generated successfully")
+                
+                // Reload classes to update UI
+                loadClasses()
+                
+                // Notify completion
+                onComplete()
             } catch (e: Exception) {
+                Log.e("ClassListViewModel", "Failed to create class", e)
                 _uiState.value = ClassListUiState.Error(e.message ?: "Failed to create class")
+                onComplete()
             }
         }
     }
@@ -94,6 +122,9 @@ class ClassListViewModel @Inject constructor(
 sealed class ClassListUiState {
     object Loading : ClassListUiState()
     object Empty : ClassListUiState()
-    data class Success(val classes: List<ClassEntity>) : ClassListUiState()
+    data class Success(
+        val classes: List<ClassEntity>,
+        val studentCounts: Map<Long, Int> = emptyMap()
+    ) : ClassListUiState()
     data class Error(val message: String) : ClassListUiState()
 }

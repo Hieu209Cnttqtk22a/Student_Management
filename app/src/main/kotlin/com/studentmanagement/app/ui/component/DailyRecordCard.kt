@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,6 +39,7 @@ fun DailyRecordCard(
     tags: List<String> = emptyList(),
     imageCount: Int = 0,
     onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -65,20 +67,39 @@ fun DailyRecordCard(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                if (score != null) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Secondary.copy(alpha = 0.1f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = String.format("%.1f", score),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Secondary
-                        )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (score != null) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Secondary.copy(alpha = 0.1f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = String.format("%.1f", score),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Secondary
+                            )
+                        }
+                    }
+                    // Delete button
+                    if (onDelete != null) {
+                        androidx.compose.material3.IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Xóa điểm",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
