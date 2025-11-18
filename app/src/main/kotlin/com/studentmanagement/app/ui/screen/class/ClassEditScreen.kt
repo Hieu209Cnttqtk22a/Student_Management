@@ -1,31 +1,29 @@
 package com.studentmanagement.app.ui.screen.`class`
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,9 +67,7 @@ fun ClassEditScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val className = remember { mutableStateOf("") }
-    val selectedDays = remember { mutableStateOf(setOf<Int>()) }
-    val startHour = remember { mutableStateOf("") }
-    val startMinute = remember { mutableStateOf("") }
+    val scheduleItems = remember { mutableStateListOf<ScheduleItem>() }
     val repeatInterval = remember { mutableStateOf("1") }
     val repeatUnit = remember { mutableStateOf("WEEK") }
     val showDeleteDialog = remember { mutableStateOf(false) }
@@ -84,21 +81,26 @@ fun ClassEditScreen(
             val classEntity = (uiState as ClassEditUiState.Success).classEntity
             className.value = classEntity.name
             
-            // Parse schedule days
+            // Parse schedule days and create schedule items
             try {
-                val days = kotlinx.serialization.json.Json.decodeFromString<List<Int>>(classEntity.scheduleDaysOfWeek)
-                selectedDays.value = days.toSet()
+                val days = Json.decodeFromString<List<Int>>(classEntity.scheduleDaysOfWeek)
+                if (days.isNotEmpty() && scheduleItems.isEmpty()) {
+                    // Parse start time
+                    val hour = classEntity.startTimeMinutes?.let { (it / 60).toString() } ?: ""
+                    val minute = classEntity.startTimeMinutes?.let { (it % 60).toString() } ?: ""
+                    
+                    // Create schedule items for each day
+                    scheduleItems.clear()
+                    days.forEach { day ->
+                        scheduleItems.add(ScheduleItem(day, hour, minute))
+                    }
+                }
             } catch (e: Exception) {
-                selectedDays.value = emptySet()
+                if (scheduleItems.isEmpty()) {
+                    scheduleItems.add(ScheduleItem())
+                }
             }
             
-            // Parse start time
-            classEntity.startTimeMinutes?.let { minutes ->
-                startHour.value = (minutes / 60).toString()
-                startMinute.value = (minutes % 60).toString()
-            }
-            
-            // Parse repeat settings
             repeatInterval.value = classEntity.repeatInterval.toString()
             repeatUnit.value = classEntity.repeatUnit
         }
@@ -142,25 +144,10 @@ fun ClassEditScreen(
         when (val state = uiState) {
             is ClassEditUiState.Loading -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
-                }
-            }
-            is ClassEditUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "Lỗi: ${state.message}",
-                        color = MaterialTheme.colorScheme.error
-                    )
                 }
             }
             is ClassEditUiState.Success -> {
@@ -191,76 +178,7 @@ fun ClassEditScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    Text(
-                        "Lịch học",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    DayOfWeekSelector(
-                        selectedDays = selectedDays.value,
-                        onDayToggle = { day ->
-                            selectedDays.value = if (selectedDays.value.contains(day)) {
-                                selectedDays.value - day
-                            } else {
-                                selectedDays.value + day
-                            }
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        "Thời gian học",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = startHour.value,
-                            onValueChange = { 
-                                if (it.isEmpty() || (it.toIntOrNull() in 0..23)) {
-                                    startHour.value = it
-                                }
-                            },
-                            label = { Text("Giờ") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                        )
-                        
-                        Text(
-                            ":",
-                            fontSize = 24.sp,
-                            modifier = Modifier.align(Alignment.CenterVertically)
-                        )
-                        
-                        OutlinedTextField(
-                            value = startMinute.value,
-                            onValueChange = { 
-                                if (it.isEmpty() || (it.toIntOrNull() in 0..59)) {
-                                    startMinute.value = it
-                                }
-                            },
-                            label = { Text("Phút") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                    // Tần suất lặp lại
                     Text(
                         "Tần suất lặp lại",
                         fontSize = 14.sp,
@@ -296,6 +214,57 @@ fun ClassEditScreen(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Lịch học
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Lịch học",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        // Nút thêm lịch
+                        IconButton(
+                            onClick = { scheduleItems.add(ScheduleItem()) },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Primary, RoundedCornerShape(8.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Thêm lịch",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Danh sách lịch học
+                    scheduleItems.forEachIndexed { index, item ->
+                        ScheduleItemCard(
+                            item = item,
+                            onItemChange = { newItem ->
+                                scheduleItems[index] = newItem
+                            },
+                            onDelete = {
+                                if (scheduleItems.size > 1) {
+                                    scheduleItems.removeAt(index)
+                                }
+                            },
+                            canDelete = scheduleItems.size > 1
+                        )
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
                     Spacer(modifier = Modifier.height(32.dp))
 
                     Row(
@@ -311,17 +280,24 @@ fun ClassEditScreen(
                             text = "Lưu",
                             onClick = {
                                 if (className.value.isNotBlank()) {
-                                    val scheduleDaysJson = Json.encodeToString(selectedDays.value.toList())
-                                    val startTimeInMinutes = if (startHour.value.isNotBlank() && startMinute.value.isNotBlank()) {
-                                        (startHour.value.toIntOrNull() ?: 0) * 60 + (startMinute.value.toIntOrNull() ?: 0)
+                                    val selectedDays = scheduleItems.map { it.dayOfWeek }.toSet()
+                                    val scheduleDaysJson = Json.encodeToString(selectedDays.toList())
+                                    
+                                    val firstItem = scheduleItems.firstOrNull()
+                                    val startTimeInMinutes = if (firstItem != null && 
+                                        firstItem.hour.isNotBlank() && 
+                                        firstItem.minute.isNotBlank()) {
+                                        (firstItem.hour.toIntOrNull() ?: 0) * 60 + 
+                                        (firstItem.minute.toIntOrNull() ?: 0)
                                     } else null
+                                    
                                     val interval = repeatInterval.value.toIntOrNull() ?: 1
                                     
                                     viewModel.updateClass(
                                         classId = classId,
                                         name = className.value,
-                                        scheduleDays = scheduleDaysJson,
-                                        startTime = startTimeInMinutes,
+                                        scheduleDaysOfWeek = scheduleDaysJson,
+                                        startTimeMinutes = startTimeInMinutes,
                                         repeatInterval = interval,
                                         repeatUnit = repeatUnit.value
                                     )
@@ -334,112 +310,46 @@ fun ClassEditScreen(
                     }
                 }
             }
-        }
-
-        // Delete confirmation dialog
-        if (showDeleteDialog.value) {
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog.value = false },
-                title = { Text("Xóa lớp học") },
-                text = { Text("Bạn có chắc chắn muốn xóa lớp học này? Hành động này không thể hoàn tác.") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            viewModel.deleteClass(classId)
-                            showDeleteDialog.value = false
-                            navController.popBackStack()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("Xóa")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteDialog.value = false }) {
-                        Text("Hủy")
-                    }
+            is ClassEditUiState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Lỗi: ${state.message}",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
-            )
-        }
-    }
-}
-
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun DayOfWeekSelector(
-    selectedDays: Set<Int>,
-    onDayToggle: (Int) -> Unit
-) {
-    val daysOfWeek = listOf(
-        2 to "T2",
-        3 to "T3",
-        4 to "T4",
-        5 to "T5",
-        6 to "T6",
-        7 to "T7",
-        1 to "CN"
-    )
-
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        daysOfWeek.forEach { (dayValue, dayLabel) ->
-            FilterChip(
-                selected = selectedDays.contains(dayValue),
-                onClick = { onDayToggle(dayValue) },
-                label = { Text(dayLabel) }
-            )
-        }
-    }
-}
-
-@Composable
-fun RepeatUnitDropdown(
-    selectedUnit: String,
-    onUnitSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val units = mapOf(
-        "WEEK" to "Tuần",
-        "MONTH" to "Tháng",
-        "YEAR" to "Năm"
-    )
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = modifier
-    ) {
-        OutlinedTextField(
-            value = units[selectedUnit] ?: "Tuần",
-            onValueChange = {},
-            readOnly = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor()
-                .fillMaxWidth(),
-            singleLine = true
-        )
-        
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            units.forEach { (key, label) ->
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    onClick = {
-                        onUnitSelected(key)
-                        expanded = false
-                    }
-                )
             }
         }
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog.value) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog.value = false },
+            title = { Text("Xác nhận xóa") },
+            text = { Text("Bạn có chắc chắn muốn xóa lớp học này?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteClass(classId)
+                        showDeleteDialog.value = false
+                        navController.popBackStack()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Xóa")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog.value = false }) {
+                    Text("Hủy")
+                }
+            }
+        )
     }
 }

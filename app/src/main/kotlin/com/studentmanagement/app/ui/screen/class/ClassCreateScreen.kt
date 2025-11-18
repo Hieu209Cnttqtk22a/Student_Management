@@ -5,25 +5,25 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -52,15 +53,19 @@ import com.studentmanagement.app.ui.theme.Primary
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+data class ScheduleItem(
+    val dayOfWeek: Int = 2, // Default Monday
+    val hour: String = "",
+    val minute: String = ""
+)
+
 @Composable
 fun ClassCreateScreen(
     navController: NavController,
     onSave: (String, String, Int?, Int, String) -> Unit
 ) {
     val className = remember { mutableStateOf("") }
-    val selectedDays = remember { mutableStateOf(setOf<Int>()) }
-    val startHour = remember { mutableStateOf("") }
-    val startMinute = remember { mutableStateOf("") }
+    val scheduleItems = remember { mutableStateListOf(ScheduleItem()) }
     val repeatInterval = remember { mutableStateOf("1") }
     val repeatUnit = remember { mutableStateOf("WEEK") }
 
@@ -117,76 +122,7 @@ fun ClassCreateScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                "Lịch học",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            DayOfWeekSelector(
-                selectedDays = selectedDays.value,
-                onDayToggle = { day ->
-                    selectedDays.value = if (selectedDays.value.contains(day)) {
-                        selectedDays.value - day
-                    } else {
-                        selectedDays.value + day
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                "Thời gian học",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = startHour.value,
-                    onValueChange = { 
-                        if (it.isEmpty() || (it.toIntOrNull() in 0..23)) {
-                            startHour.value = it
-                        }
-                    },
-                    label = { Text("Giờ") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                
-                Text(
-                    ":",
-                    fontSize = 24.sp,
-                    modifier = Modifier.align(Alignment.CenterVertically)
-                )
-                
-                OutlinedTextField(
-                    value = startMinute.value,
-                    onValueChange = { 
-                        if (it.isEmpty() || (it.toIntOrNull() in 0..59)) {
-                            startMinute.value = it
-                        }
-                    },
-                    label = { Text("Phút") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
+            // Tần suất lặp lại
             Text(
                 "Tần suất lặp lại",
                 fontSize = 14.sp,
@@ -222,6 +158,57 @@ fun ClassCreateScreen(
                 )
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Lịch học
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Lịch học",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                // Nút thêm lịch
+                IconButton(
+                    onClick = { scheduleItems.add(ScheduleItem()) },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Primary, RoundedCornerShape(8.dp))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Thêm lịch",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Danh sách lịch học
+            scheduleItems.forEachIndexed { index, item ->
+                ScheduleItemCard(
+                    item = item,
+                    onItemChange = { newItem ->
+                        scheduleItems[index] = newItem
+                    },
+                    onDelete = {
+                        if (scheduleItems.size > 1) {
+                            scheduleItems.removeAt(index)
+                        }
+                    },
+                    canDelete = scheduleItems.size > 1
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Row(
@@ -237,10 +224,19 @@ fun ClassCreateScreen(
                     text = "Lưu",
                     onClick = {
                         if (className.value.isNotBlank()) {
-                            val scheduleDaysJson = Json.encodeToString(selectedDays.value.toList())
-                            val startTimeInMinutes = if (startHour.value.isNotBlank() && startMinute.value.isNotBlank()) {
-                                (startHour.value.toIntOrNull() ?: 0) * 60 + (startMinute.value.toIntOrNull() ?: 0)
+                            // Lấy tất cả các ngày trong tuần từ scheduleItems
+                            val selectedDays = scheduleItems.map { it.dayOfWeek }.toSet()
+                            val scheduleDaysJson = Json.encodeToString(selectedDays.toList())
+                            
+                            // Lấy thời gian từ item đầu tiên (hoặc có thể lưu nhiều thời gian)
+                            val firstItem = scheduleItems.firstOrNull()
+                            val startTimeInMinutes = if (firstItem != null && 
+                                firstItem.hour.isNotBlank() && 
+                                firstItem.minute.isNotBlank()) {
+                                (firstItem.hour.toIntOrNull() ?: 0) * 60 + 
+                                (firstItem.minute.toIntOrNull() ?: 0)
                             } else null
+                            
                             val interval = repeatInterval.value.toIntOrNull() ?: 1
                             
                             onSave(
@@ -255,6 +251,211 @@ fun ClassCreateScreen(
                     },
                     modifier = Modifier.weight(1f),
                     enabled = className.value.isNotBlank()
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ScheduleItemCard(
+    item: ScheduleItem,
+    onItemChange: (ScheduleItem) -> Unit,
+    onDelete: () -> Unit,
+    canDelete: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Buổi học",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Primary
+            )
+            
+            if (canDelete) {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Xóa",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Chọn thứ
+        Text(
+            "Thứ trong tuần",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        DayOfWeekDropdown(
+            selectedDay = item.dayOfWeek,
+            onDaySelected = { onItemChange(item.copy(dayOfWeek = it)) }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Chọn giờ
+        Text(
+            "Thời gian bắt đầu",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = item.hour,
+                onValueChange = { 
+                    if (it.isEmpty() || (it.toIntOrNull() in 0..23)) {
+                        onItemChange(item.copy(hour = it))
+                    }
+                },
+                label = { Text("Giờ") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            
+            Text(
+                ":",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold
+            )
+            
+            OutlinedTextField(
+                value = item.minute,
+                onValueChange = { 
+                    if (it.isEmpty() || (it.toIntOrNull() in 0..59)) {
+                        onItemChange(item.copy(minute = it))
+                    }
+                },
+                label = { Text("Phút") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+        }
+    }
+}
+
+@Composable
+fun DayOfWeekDropdown(
+    selectedDay: Int,
+    onDaySelected: (Int) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val daysOfWeek = mapOf(
+        2 to "Thứ 2",
+        3 to "Thứ 3",
+        4 to "Thứ 4",
+        5 to "Thứ 5",
+        6 to "Thứ 6",
+        7 to "Thứ 7",
+        1 to "Chủ nhật"
+    )
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = daysOfWeek[selectedDay] ?: "Thứ 2",
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            singleLine = true
+        )
+        
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            daysOfWeek.forEach { (key, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onDaySelected(key)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RepeatUnitDropdown(
+    selectedUnit: String,
+    onUnitSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val units = mapOf(
+        "WEEK" to "Tuần",
+        "MONTH" to "Tháng",
+        "YEAR" to "Năm"
+    )
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = units[selectedUnit] ?: "Tuần",
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            singleLine = true
+        )
+        
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            units.forEach { (key, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onUnitSelected(key)
+                        expanded = false
+                    }
                 )
             }
         }

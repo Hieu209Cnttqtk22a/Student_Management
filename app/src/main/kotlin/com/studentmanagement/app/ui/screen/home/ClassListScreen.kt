@@ -130,50 +130,52 @@ fun ClassListScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Filter and sort row
+            // Filter and sort row - 2 nút to ở giữa
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 32.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
             ) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(40.dp)
+                        .height(56.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(8.dp)
+                            color = Primary.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(12.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "Sắp xếp",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Primary
                     )
                 }
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(40.dp)
+                        .height(56.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(8.dp)
+                            color = Primary.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(12.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "Lọc",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Primary
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Class list
             when (val state = uiState) {
@@ -210,7 +212,8 @@ fun ClassListScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 88.dp)
                     ) {
                         items(state.classes) { classEntity ->
                             ClassCard(
