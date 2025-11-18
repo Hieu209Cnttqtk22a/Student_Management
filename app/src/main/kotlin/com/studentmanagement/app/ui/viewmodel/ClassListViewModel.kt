@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.studentmanagement.app.data.entity.ClassEntity
 import com.studentmanagement.app.data.repository.ClassRepository
+import com.studentmanagement.app.service.ScheduleService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ClassListViewModel @Inject constructor(
-    private val classRepository: ClassRepository
+    private val classRepository: ClassRepository,
+    private val scheduleService: ScheduleService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ClassListUiState>(ClassListUiState.Loading)
@@ -43,6 +45,8 @@ class ClassListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 classRepository.createClass(classEntity)
+                // Generate schedule for the newly created class
+                scheduleService.generateScheduleForClass(classEntity)
             } catch (e: Exception) {
                 _uiState.value = ClassListUiState.Error(e.message ?: "Failed to create class")
             }

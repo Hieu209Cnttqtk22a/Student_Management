@@ -23,7 +23,9 @@
   - Thêm hàm `recordExists(studentId: Long, classId: Long, date: String): Boolean` để check duplicate
   - _Requirements: 1.2, 1.4_
 
-- [-] 3. Tạo ScheduleService
+- [x] 3. Tạo ScheduleService
+
+
 
 
 
@@ -34,26 +36,46 @@
   - Xử lý trường hợp lớp chưa có học sinh (không tạo records)
   - _Requirements: 1.1, 1.2, 1.5_
 
-- [ ] 4. Cập nhật ClassListViewModel
+- [x] 4. Cập nhật ClassListViewModel
+
+
+
+
+
   - Inject ScheduleService vào ClassListViewModel
   - Gọi `scheduleService.generateScheduleForClass()` sau khi tạo lớp thành công trong hàm `createClass()`
   - Xử lý exceptions và cập nhật UI state nếu có lỗi
   - _Requirements: 1.1_
 
-- [ ] 5. Cập nhật ClassEditViewModel
+- [x] 5. Cập nhật ClassEditViewModel
+
+
+
+
+
   - Inject ScheduleService vào ClassEditViewModel
   - Gọi `scheduleService.regenerateScheduleForClass()` sau khi cập nhật lớp thành công trong hàm `updateClass()`
   - Chỉ regenerate nếu lịch học thay đổi (scheduleDaysOfWeek, repeatInterval, hoặc repeatUnit)
   - _Requirements: 1.2_
 
-- [ ] 6. Thêm icon cho ứng dụng
+- [x] 6. Thêm icon cho ứng dụng
+
+
+
+
+
   - Copy file `student-management-01.png` vào thư mục tạm
   - Sử dụng Android Image Asset Studio hoặc script để tạo các kích thước icon (mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi)
   - Copy các file icon vào `app/src/main/res/mipmap-*` folders
   - Cập nhật `AndroidManifest.xml` để sử dụng icon mới (android:icon="@mipmap/ic_launcher")
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 7. Viết unit tests
+- [x] 7. Viết unit tests
+
+
+
+
+
   - Test ScheduleCalculator với các trường hợp: WEEK, MONTH, YEAR repeat
   - Test ScheduleCalculator với scheduleDaysOfWeek khác nhau
   - Test ScheduleService.generateScheduleForClass với lớp có/không có học sinh

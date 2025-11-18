@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.studentmanagement.app.data.entity.ClassEntity
 import com.studentmanagement.app.data.repository.ClassRepository
+import com.studentmanagement.app.service.ScheduleService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ClassEditViewModel @Inject constructor(
-    private val classRepository: ClassRepository
+    private val classRepository: ClassRepository,
+    private val scheduleService: ScheduleService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ClassEditUiState>(ClassEditUiState.Loading)
@@ -53,7 +55,20 @@ class ClassEditViewModel @Inject constructor(
                         repeatInterval = repeatInterval ?: classEntity.repeatInterval,
                         repeatUnit = repeatUnit ?: classEntity.repeatUnit
                     )
+                    
+                    // Kiểm tra xem lịch học có thay đổi không
+                    val scheduleChanged = 
+                        updatedClass.scheduleDaysOfWeek != classEntity.scheduleDaysOfWeek ||
+                        updatedClass.repeatInterval != classEntity.repeatInterval ||
+                        updatedClass.repeatUnit != classEntity.repeatUnit
+                    
+                    // Cập nhật lớp học
                     classRepository.updateClass(updatedClass)
+                    
+                    // Nếu lịch học thay đổi, tạo lại lịch cho học sinh
+                    if (scheduleChanged) {
+                        scheduleService.regenerateScheduleForClass(updatedClass)
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.value = ClassEditUiState.Error(e.message ?: "Failed to update class")
