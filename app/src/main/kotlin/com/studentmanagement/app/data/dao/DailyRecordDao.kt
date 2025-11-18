@@ -34,4 +34,13 @@ interface DailyRecordDao {
 
     @Query("SELECT * FROM daily_records WHERE classId = :classId AND date = :date ORDER BY studentId ASC")
     fun getRecordsByClassAndDate(classId: Long, date: String): Flow<List<DailyRecordEntity>>
+
+    @Insert
+    suspend fun insertAll(records: List<DailyRecordEntity>)
+
+    @Query("DELETE FROM daily_records WHERE classId = :classId AND score IS NULL AND note IS NULL")
+    suspend fun deleteEmptyRecordsByClass(classId: Long)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM daily_records WHERE studentId = :studentId AND classId = :classId AND date = :date LIMIT 1)")
+    suspend fun recordExists(studentId: Long, classId: Long, date: String): Boolean
 }

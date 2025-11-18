@@ -25,8 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,13 +34,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.studentmanagement.app.ui.theme.Primary
+import com.studentmanagement.app.ui.viewmodel.SettingsViewModel
 
 @Composable
-fun SettingsScreen(navController: NavController) {
-    val darkModeEnabled = remember { mutableStateOf(false) }
-    val reminderEnabled = remember { mutableStateOf(true) }
+fun SettingsScreen(
+    navController: NavController,
+    viewModel: SettingsViewModel = hiltViewModel()
+) {
+    val darkModeEnabled by viewModel.darkMode.collectAsState()
+    val reminderEnabled by viewModel.reminderEnabled.collectAsState()
 
     Scaffold(
         topBar = {
@@ -75,8 +80,8 @@ fun SettingsScreen(navController: NavController) {
                     icon = Icons.Default.DarkMode,
                     title = "Chế độ tối",
                     description = "Bật chế độ tối để bảo vệ mắt",
-                    checked = darkModeEnabled.value,
-                    onCheckedChange = { darkModeEnabled.value = it }
+                    checked = darkModeEnabled,
+                    onCheckedChange = { viewModel.setDarkMode(it) }
                 )
             }
 
@@ -90,8 +95,8 @@ fun SettingsScreen(navController: NavController) {
                     icon = Icons.Default.Notifications,
                     title = "Nhắc hẹn buổi học",
                     description = "Nhận thông báo trước 15 phút",
-                    checked = reminderEnabled.value,
-                    onCheckedChange = { reminderEnabled.value = it }
+                    checked = reminderEnabled,
+                    onCheckedChange = { viewModel.setReminderEnabled(it) }
                 )
             }
 

@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,6 +27,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -32,13 +36,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.studentmanagement.app.ui.component.ClassCard
 import com.studentmanagement.app.ui.theme.Primary
 import com.studentmanagement.app.ui.theme.PrimaryLight
+import com.studentmanagement.app.ui.viewmodel.ClassListViewModel
+import com.studentmanagement.app.ui.viewmodel.ClassListUiState
 
 @Composable
-fun ClassListScreen(navController: NavController) {
+fun ClassListScreen(
+    navController: NavController,
+    viewModel: ClassListViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -50,7 +61,7 @@ fun ClassListScreen(navController: NavController) {
                     )
                 },
                 actions = {
-                    IconButton(onClick = { /* Refresh */ }) {
+                    IconButton(onClick = { viewModel.loadClasses() }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Làm mới",
@@ -106,8 +117,12 @@ fun ClassListScreen(navController: NavController) {
                         fontSize = 16.sp,
                         color = Color.White.copy(alpha = 0.8f)
                     )
+                    val classCount = when (val state = uiState) {
+                        is ClassListUiState.Success -> state.classes.size
+                        else -> 0
+                    }
                     Text(
-                        "3 lớp đang hoạt động",
+                        "$classCount lớp đang hoạt động",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White
@@ -161,21 +176,65 @@ fun ClassListScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(16.dp))
 
             // Class list
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(3) { index ->
-                    ClassCard(
-                        className = "Lớp ${index + 1}",
-                        subject = "Toán",
-                        studentCount = 10 + index,
-                        nextSessionDate = "Hôm nay",
-                        onEditClick = { /* TODO: Navigate to edit */ },
-                        onDetailClick = { navController.navigate("class/${index + 1}/detail") }
-                    )
+            when (val state = uiState) {
+                is ClassListUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is ClassListUiState.Empty -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "Chưa có lớp học nào",
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Nhấn nút + để tạo lớp học mới",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+                is ClassListUiState.Success -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(state.classes) { classEntity ->
+                            ClassCard(
+                                className = classEntity.name,
+                                subject = classEntity.subject ?: "",
+                                studentCount = 0, // TODO: Get actual student count
+                                nextSessionDate = "Hôm nay",
+                                onEditClick = { navController.navigate("class/${classEntity.id}/edit") },
+                                onDetailClick = { navController.navigate("class/${classEntity.id}/detail") }
+                            )
+                        }
+                    }
+                }
+                is ClassListUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Lỗi: ${state.message}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }

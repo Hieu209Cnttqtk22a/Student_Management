@@ -1,0 +1,61 @@
+APP Mobile: Quản lý học sinh
+- Giao diện trực quan, dễ hiểu, dễ sử dụng
+- Các tag sử dụng trong detail_class_UI: có điểm, điểm kém, học bù, bù bài, nghỉ học(điểm là - ), chưa làm bài tập/ đầy đủ bài tập
+- Tự động update dữ liệu và lịch
+Các UI qua trọng:
+main_UI:
+- Hiển thị các lớp học đã tạo
+- có nút tạo lớp học và nút refresh
+- thanh bar dưới cùng( footer ) gồm các nút: Home, Lịch, Cài đặt
+- Nút sắp xếp lớp theo: tên lớp, ngày gần nhất đến ca làm, tổng số lượng học sinh
+- Các danh sách lớp có 2 nút chính: Chỉnh sửa class và xem chi tiết ( detail_class_UI ) class ( edit_class_UI )
+
+setting_UI:
+- hiển thị version hiện tại của App
+- Các nút toggle dark/light mode, nhắc hẹn
+
+calendar_UI:
+- Hiển thị như các app lịch thông thường
+- hiển thị tổng số ca làm mini trên các ô ngày của lịch
+- background nổi bật nếu ngày đó đi làm
+
+create_class_UI:
+- nút back ( coi như hủy tạo class )
+- Khung nhập tên lớp
+- khung chọn lịch làm và nút + bên phải ( thêm khung chọn lịch )
+- Nút lưu ở cuối ( tự động up trong calendar_UI ) và lưu xong cho bản thân về main_UI
+- Ấn nút lưu sẽ yêu cầu làm trong bao lâu ( tuần / tháng / năm )
+
+edit_class_UI:
+- Nút back về main_UI ( coi như hủy chỉnh sửa class )
+- Hiển thị khung tên lớp ( không cho edit )
+- hiển thị các lịch làm ( có thể ấn vào để chính sửa lịch khác )
+- hiển thị làm trong bao lâu ( tuần / tháng / năm )
+- thêm, sửa, xóa lịch và làm trong bao lâu đang có trong class
+- Nút lưu và xóa class
+
+detail_class_UI:
+- bảng grid gồm:
+  - cột: chi tiết, họ, tên, STT, các cột ngày ( trùng ngày đi làm có trong lịch ) ( cố định cột chi tiết, họ, tên, STT)
+  - hàng: có thể thêm dữ liệu vào ( cố định hàng ngày ), có icon mắt để xem chi tiết của hàng đó
+  - các ô còn lại để hiển thị điểm của ngày hôm đó. khi ấn vào sẽ mở input_mark_UI để nhập thông tin
+- header: nút back về main_UI, nút refresh và nút lọc
+- Lọc: theo các tag mà học sinh có, lọc theo ngày cụ thể
+- Khi nhập tên học sinh vào sẽ tự động sắp xếp trên grid đó theo cột tên và update những hàng khác với dữ liệu đi cùng
+
+input_mark_UI:
+- Nút back về detail_class_UI ( coi như hủy edit ô đó )
+- Hiển thị tên học sinh
+- khung nhập điểm của học sinh ( không nhập cũng được )
+- ô thêm ảnh vào dữ liệu: cho phép chụp hoặc thêm từ bộ thư viện. cho phép upload nhiều hình ảnh
+- Cho phép chọn nhiều tag được nêu ở trên
+- Nút lưu 
+
+list_detail_student_UI:
+- hiển thị các ngày có dữ liệu và cho phép ấn vào để xem chi tiết hơn ( detail_student_UI )
+- có nút lọc theo ngày, hiển thị với số lượng bao nhiêu ( 5, 10, 50, 100 )
+- footer: trang tiếp và trang trước đó
+
+detail_student_UI:
+- Hiển thị tên học sinh, ngày cụ thể, các tag có, các ảnh được lưu vào, điểm có ( không cho edit )
+- Nút back về list_detail_student_UI

@@ -13,4 +13,6 @@ data class ClassEntity(
     val scheduleDaysOfWeek: String = "", // JSON serialized list
     val startTimeMinutes: Int? = null,
     val durationMinutes: Int? = null,
+    val repeatInterval: Int = 1, // Số lần lặp (1, 2, 3...)
+    val repeatUnit: String = "WEEK" // WEEK, MONTH, YEAR
 )

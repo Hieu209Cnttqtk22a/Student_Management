@@ -73,4 +73,16 @@ class DailyRecordRepository @Inject constructor(
     suspend fun deleteDailyRecord(dailyRecord: DailyRecordEntity) {
         dailyRecordDao.delete(dailyRecord)
     }
+
+    suspend fun createBulkRecords(records: List<DailyRecordEntity>) {
+        dailyRecordDao.insertAll(records)
+    }
+
+    suspend fun deleteEmptyRecordsByClass(classId: Long) {
+        dailyRecordDao.deleteEmptyRecordsByClass(classId)
+    }
+
+    suspend fun recordExists(studentId: Long, classId: Long, date: String): Boolean {
+        return dailyRecordDao.recordExists(studentId, classId, date)
+    }
 }

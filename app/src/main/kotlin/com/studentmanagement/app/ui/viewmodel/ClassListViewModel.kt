@@ -39,12 +39,49 @@ class ClassListViewModel @Inject constructor(
         }
     }
 
+    fun createClass(classEntity: ClassEntity) {
+        viewModelScope.launch {
+            try {
+                classRepository.createClass(classEntity)
+            } catch (e: Exception) {
+                _uiState.value = ClassListUiState.Error(e.message ?: "Failed to create class")
+            }
+        }
+    }
+
     fun deleteClass(classEntity: ClassEntity) {
         viewModelScope.launch {
             try {
                 classRepository.deleteClass(classEntity)
             } catch (e: Exception) {
                 _uiState.value = ClassListUiState.Error(e.message ?: "Failed to delete class")
+            }
+        }
+    }
+
+    fun deleteClassById(classId: Long) {
+        viewModelScope.launch {
+            try {
+                val classEntity = classRepository.getClassById(classId)
+                if (classEntity != null) {
+                    classRepository.deleteClass(classEntity)
+                }
+            } catch (e: Exception) {
+                _uiState.value = ClassListUiState.Error(e.message ?: "Failed to delete class")
+            }
+        }
+    }
+
+    fun updateClass(classId: Long, name: String) {
+        viewModelScope.launch {
+            try {
+                val classEntity = classRepository.getClassById(classId)
+                if (classEntity != null) {
+                    val updatedClass = classEntity.copy(name = name)
+                    classRepository.updateClass(updatedClass)
+                }
+            } catch (e: Exception) {
+                _uiState.value = ClassListUiState.Error(e.message ?: "Failed to update class")
             }
         }
     }

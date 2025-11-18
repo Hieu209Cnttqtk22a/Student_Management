@@ -29,7 +29,7 @@ import com.studentmanagement.app.data.entity.TagEntity
         DailyRecordTagCrossRef::class,
         AttachmentEntity::class
     ],
-    version = 1,
+    version = 4,
     exportSchema = false
 )
 abstract class StudentManagementDatabase : RoomDatabase() {
@@ -51,22 +51,10 @@ abstract class StudentManagementDatabase : RoomDatabase() {
                     StudentManagementDatabase::class.java,
                     "student_management_db"
                 )
-                    .addCallback(DatabaseCallback())
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
-            }
-        }
-    }
-
-    private class DatabaseCallback : RoomDatabase.Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) {
-            super.onCreate(db)
-            // Initialize default tags
-            DailyTag.values().forEach { tag ->
-                db.execSQL(
-                    "INSERT INTO tags (code, displayName) VALUES ('${tag.code}', '${tag.displayName}')"
-                )
             }
         }
     }

@@ -31,9 +31,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,13 +56,32 @@ import com.studentmanagement.app.ui.theme.Primary
 fun StudentDailyEditScreen(
     navController: NavController,
     studentId: Long,
-    studentName: String = "Nguyễn Văn A",
-    date: String = "17/11/2024"
+    classId: Long = 0,
+    studentName: String = "",
+    date: String = "",
+    viewModel: com.studentmanagement.app.ui.viewmodel.StudentDailyEditViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
-    val score = remember { mutableStateOf("") }
-    val note = remember { mutableStateOf("") }
-    val selectedTags = remember { mutableStateListOf<String>() }
-    val images = remember { mutableStateListOf<String>() }
+    val uiState by viewModel.uiState.collectAsState()
+    val score by viewModel.score.collectAsState()
+    val note by viewModel.note.collectAsState()
+    val availableTagsFromDb by viewModel.availableTags.collectAsState()
+    val selectedTagsFromDb by viewModel.selectedTags.collectAsState()
+    
+    // Convert date from dd/MM/yyyy to yyyy-MM-dd for database
+    val dbDate = remember(date) {
+        val parts = date.split("/")
+        if (parts.size == 3) {
+            "${parts[2]}-${parts[1]}-${parts[0]}"
+        } else {
+            date
+        }
+    }
+    
+    androidx.compose.runtime.LaunchedEffect(studentId, classId, dbDate) {
+        if (classId > 0 && dbDate.isNotEmpty()) {
+            viewModel.loadDailyRecord(studentId, classId, dbDate)
+        }
+    }
 
     val availableTags = listOf(
         "Có điểm" to TagType.STUDIED,
@@ -139,8 +162,8 @@ fun StudentDailyEditScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
-                value = score.value,
-                onValueChange = { score.value = it },
+                value = score,
+                onValueChange = { viewModel.setScore(it) },
                 label = { Text("Nhập điểm (tùy chọn)") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -164,13 +187,9 @@ fun StudentDailyEditScreen(
                 availableTags.forEach { (tag, type) ->
                     TagChip(
                         label = tag,
-                        selected = selectedTags.contains(tag),
+                        selected = false, // TODO: Connect with ViewModel tags
                         onClick = {
-                            if (selectedTags.contains(tag)) {
-                                selectedTags.remove(tag)
-                            } else {
-                                selectedTags.add(tag)
-                            }
+                            // TODO: Toggle tag in ViewModel
                         },
                         tagType = type
                     )
@@ -217,14 +236,7 @@ fun StudentDailyEditScreen(
                 }
             }
 
-            if (images.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "${images.size} ảnh đã chọn",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            // TODO: Show selected images count
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -237,8 +249,8 @@ fun StudentDailyEditScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
-                value = note.value,
-                onValueChange = { note.value = it },
+                value = note,
+                onValueChange = { viewModel.setNote(it) },
                 label = { Text("Ghi chú thêm (tùy chọn)") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
@@ -260,8 +272,9 @@ fun StudentDailyEditScreen(
                 PrimaryButton(
                     text = "Lưu",
                     onClick = {
-                        // Save logic here
-                        navController.popBackStack()
+                        viewModel.saveDailyRecord(studentId, classId, dbDate) {
+                            navController.popBackStack()
+                        }
                     },
                     modifier = Modifier.weight(1f)
                 )

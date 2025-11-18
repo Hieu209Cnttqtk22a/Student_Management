@@ -17,15 +17,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.studentmanagement.app.ui.screen.home.ClassListScreen
 import com.studentmanagement.app.ui.screen.calendar.CalendarScreen
 import com.studentmanagement.app.ui.screen.settings.SettingsScreen
 import com.studentmanagement.app.ui.screen.`class`.ClassCreateScreen
 import com.studentmanagement.app.ui.screen.`class`.ClassDetailScreen
+import com.studentmanagement.app.ui.screen.`class`.ClassEditScreen
 import com.studentmanagement.app.ui.screen.student.StudentCreateScreen
 import com.studentmanagement.app.ui.screen.student.StudentDailyEditScreen
 import com.studentmanagement.app.ui.screen.student.StudentDailyHistoryListScreen
 import com.studentmanagement.app.ui.screen.student.StudentDailyDetailScreen
+import com.studentmanagement.app.ui.viewmodel.ClassListViewModel
+import com.studentmanagement.app.data.entity.ClassEntity
 
 @Composable
 fun AppNavigation() {
@@ -81,10 +85,19 @@ fun AppNavigation() {
 
             // Class screens
             composable("class/create") {
+                val viewModel: ClassListViewModel = hiltViewModel()
                 ClassCreateScreen(
                     navController = navController,
-                    onSave = { name, subject, note ->
-                        // TODO: Save to database
+                    onSave = { name, scheduleDays, startTime, repeatInterval, repeatUnit ->
+                        viewModel.createClass(
+                            ClassEntity(
+                                name = name,
+                                scheduleDaysOfWeek = scheduleDays,
+                                startTimeMinutes = startTime,
+                                repeatInterval = repeatInterval,
+                                repeatUnit = repeatUnit
+                            )
+                        )
                     }
                 )
             }
@@ -94,6 +107,16 @@ fun AppNavigation() {
             ) { backStackEntry ->
                 val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
                 ClassDetailScreen(navController, classId)
+            }
+            composable(
+                route = "class/{classId}/edit",
+                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
+                ClassEditScreen(
+                    navController = navController,
+                    classId = classId
+                )
             }
 
             // Student screens
@@ -111,9 +134,13 @@ fun AppNavigation() {
                 )
             }
             composable(
-                route = "student/{studentId}/daily/edit?date={date}",
+                route = "student/{studentId}/daily/edit?classId={classId}&date={date}",
                 arguments = listOf(
                     navArgument("studentId") { type = NavType.LongType },
+                    navArgument("classId") { 
+                        type = NavType.LongType
+                        defaultValue = 0L
+                    },
                     navArgument("date") { 
                         type = NavType.StringType
                         nullable = true
@@ -121,8 +148,14 @@ fun AppNavigation() {
                 )
             ) { backStackEntry ->
                 val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
+                val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
                 val date = backStackEntry.arguments?.getString("date")
-                StudentDailyEditScreen(navController, studentId, date = date ?: "")
+                StudentDailyEditScreen(
+                    navController = navController,
+                    studentId = studentId,
+                    classId = classId,
+                    date = date ?: ""
+                )
             }
             composable(
                 route = "student/{studentId}/history",

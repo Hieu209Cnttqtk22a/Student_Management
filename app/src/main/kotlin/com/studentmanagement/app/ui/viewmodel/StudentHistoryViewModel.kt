@@ -11,6 +11,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class DailyRecordWithDetails(
+    val id: Long,
+    val studentId: Long,
+    val classId: Long,
+    val date: String,
+    val score: Float?,
+    val note: String?,
+    val tags: List<String>,
+    val imageUrls: List<String>
+)
+
 @HiltViewModel
 class StudentHistoryViewModel @Inject constructor(
     private val dailyRecordRepository: DailyRecordRepository
@@ -40,14 +51,31 @@ class StudentHistoryViewModel @Inject constructor(
                     if (records.isEmpty()) {
                         _uiState.value = StudentHistoryUiState.Empty
                     } else {
-                        val totalPages = (records.size + _pageSize.value - 1) / _pageSize.value
-                        val pagedRecords = records.chunked(_pageSize.value)
+                        // Load tags and attachments for each record
+                        val recordsWithDetails = records.map { record ->
+                            val tags = dailyRecordRepository.getTagsByDailyRecord(record.id)
+                            val attachments = dailyRecordRepository.getAttachmentsByDailyRecord(record.id)
+                            
+                            DailyRecordWithDetails(
+                                id = record.id,
+                                studentId = record.studentId,
+                                classId = record.classId,
+                                date = record.date,
+                                score = record.score,
+                                note = record.note,
+                                tags = tags.map { it.displayName },
+                                imageUrls = attachments.map { it.uri }
+                            )
+                        }
+                        
+                        val totalPages = (recordsWithDetails.size + _pageSize.value - 1) / _pageSize.value
+                        val pagedRecords = recordsWithDetails.chunked(_pageSize.value)
                         
                         _uiState.value = StudentHistoryUiState.Success(
-                            allRecords = records,
+                            allRecords = recordsWithDetails,
                             pagedRecords = pagedRecords,
                             totalPages = totalPages,
-                            averageScore = calculateAverageScore(records)
+                            averageScore = calculateAverageScore(recordsWithDetails)
                         )
                     }
                 }
@@ -77,7 +105,7 @@ class StudentHistoryViewModel @Inject constructor(
         }
     }
 
-    private fun calculateAverageScore(records: List<DailyRecordEntity>): Float {
+    private fun calculateAverageScore(records: List<DailyRecordWithDetails>): Float {
         val scoresOnly = records.mapNotNull { it.score }
         return if (scoresOnly.isNotEmpty()) {
             scoresOnly.average().toFloat()
@@ -91,8 +119,8 @@ sealed class StudentHistoryUiState {
     object Loading : StudentHistoryUiState()
     object Empty : StudentHistoryUiState()
     data class Success(
-        val allRecords: List<DailyRecordEntity>,
-        val pagedRecords: List<List<DailyRecordEntity>>,
+        val allRecords: List<DailyRecordWithDetails>,
+        val pagedRecords: List<List<DailyRecordWithDetails>>,
         val totalPages: Int,
         val averageScore: Float
     ) : StudentHistoryUiState()
