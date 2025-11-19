@@ -95,12 +95,13 @@ fun MonthCalendarView(
                         
                         if (cellIndex >= offset && dayNum <= daysInMonth) {
                             val date = LocalDate.of(yearMonth.year, yearMonth.month, dayNum)
+                            val classCount = classesMap[dayNum]?.size ?: 0
                             MonthDayItem(
                                 dayNum = dayNum,
                                 date = date,
                                 isSelected = date == selectedDate,
                                 isToday = date == currentDate,
-                                hasClasses = classesMap[dayNum]?.isNotEmpty() == true,
+                                classCount = classCount,
                                 onDateSelected = onDateSelected,
                                 modifier = Modifier.weight(1f)
                             )
@@ -114,13 +115,17 @@ fun MonthCalendarView(
     }
 }
 
+/**
+ * Calendar day cell with badge showing class count
+ * Requirements 11.2, 11.3, 14.1, 14.2, 14.3
+ */
 @Composable
 private fun MonthDayItem(
     dayNum: Int,
     date: LocalDate,
     isSelected: Boolean,
     isToday: Boolean,
-    hasClasses: Boolean,
+    classCount: Int,
     onDateSelected: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -133,7 +138,7 @@ private fun MonthDayItem(
                 when {
                     isSelected -> Primary
                     isToday -> Primary.copy(alpha = 0.2f)
-                    hasClasses -> Primary.copy(alpha = 0.1f)
+                    classCount > 0 -> Primary.copy(alpha = 0.1f)
                     else -> Color.Transparent
                 }
             )
@@ -144,32 +149,55 @@ private fun MonthDayItem(
                     Modifier
                 }
             )
-            .clickable { onDateSelected(date) },
+            .clickable { onDateSelected(date) }
+    ) {
+        // Date number in center
+        Text(
+            text = dayNum.toString(),
+            fontSize = 13.sp,
+            fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
+            color = when {
+                isSelected -> Color.White
+                isToday -> Primary
+                else -> MaterialTheme.colorScheme.onSurface
+            },
+            modifier = Modifier.align(Alignment.Center)
+        )
+        
+        // Badge with class count in top-right corner (Requirement 11.2)
+        if (classCount > 0) {
+            CalendarBadge(
+                count = classCount,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(2.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Reusable badge component for displaying class count
+ * Requirements 14.4, 14.5, 14.6
+ */
+@Composable
+private fun CalendarBadge(
+    count: Int,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.error)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = dayNum.toString(),
-                fontSize = 13.sp,
-                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-                color = when {
-                    isSelected -> Color.White
-                    isToday -> Primary
-                    else -> MaterialTheme.colorScheme.onSurface
-                }
-            )
-            
-            if (hasClasses && !isSelected) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(Primary)
-                )
-            }
-        }
+        Text(
+            text = count.toString(),
+            fontSize = 8.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onError,
+            textAlign = TextAlign.Center
+        )
     }
 }

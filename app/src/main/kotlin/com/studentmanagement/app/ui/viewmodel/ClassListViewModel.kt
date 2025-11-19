@@ -18,7 +18,8 @@ import javax.inject.Inject
 class ClassListViewModel @Inject constructor(
     private val classRepository: ClassRepository,
     private val scheduleService: ScheduleService,
-    private val studentRepository: com.studentmanagement.app.data.repository.StudentRepository
+    private val studentRepository: com.studentmanagement.app.data.repository.StudentRepository,
+    private val reminderService: com.studentmanagement.app.service.ReminderService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ClassListUiState>(ClassListUiState.Loading)
@@ -68,6 +69,12 @@ class ClassListViewModel @Inject constructor(
                 scheduleService.generateScheduleForClass(classWithId)
                 Log.d("ClassListViewModel", "Schedule generated successfully")
                 
+                // Schedule reminders if enabled (Requirement 7.2)
+                if (classWithId.reminderEnabled) {
+                    reminderService.scheduleRemindersForClass(classWithId)
+                    Log.d("ClassListViewModel", "Reminders scheduled for new class")
+                }
+                
                 // Reload classes to update UI
                 loadClasses()
                 
@@ -84,6 +91,8 @@ class ClassListViewModel @Inject constructor(
     fun deleteClass(classEntity: ClassEntity) {
         viewModelScope.launch {
             try {
+                // Cancel all reminders for this class before deletion (Requirement 7.4)
+                reminderService.cancelRemindersForClass(classEntity.id)
                 classRepository.deleteClass(classEntity)
             } catch (e: Exception) {
                 _uiState.value = ClassListUiState.Error(e.message ?: "Failed to delete class")
@@ -96,6 +105,8 @@ class ClassListViewModel @Inject constructor(
             try {
                 val classEntity = classRepository.getClassById(classId)
                 if (classEntity != null) {
+                    // Cancel all reminders for this class before deletion (Requirement 7.4)
+                    reminderService.cancelRemindersForClass(classId)
                     classRepository.deleteClass(classEntity)
                 }
             } catch (e: Exception) {

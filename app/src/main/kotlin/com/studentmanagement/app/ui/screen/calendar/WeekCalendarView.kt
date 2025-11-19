@@ -84,11 +84,12 @@ fun WeekCalendarView(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 weekDays.forEach { date ->
+                    val classCount = classesMap[date]?.size ?: 0
                     WeekDayItem(
                         date = date,
                         isSelected = date == selectedDate,
                         isToday = date == currentDate,
-                        hasClasses = classesMap[date]?.isNotEmpty() == true,
+                        classCount = classCount,
                         onDateSelected = onDateSelected,
                         modifier = Modifier.weight(1f)
                     )
@@ -103,7 +104,7 @@ private fun WeekDayItem(
     date: LocalDate,
     isSelected: Boolean,
     isToday: Boolean,
-    hasClasses: Boolean,
+    classCount: Int,
     onDateSelected: (LocalDate) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -130,30 +131,37 @@ private fun WeekDayItem(
                     } else {
                         Modifier
                     }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = date.dayOfMonth.toString(),
-                    fontSize = 16.sp,
-                    fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
-                    color = when {
-                        isSelected -> Color.White
-                        isToday -> Primary
-                        else -> MaterialTheme.colorScheme.onSurface
-                    }
                 )
-                
-                if (hasClasses && !isSelected) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(Primary)
+        ) {
+            Text(
+                text = date.dayOfMonth.toString(),
+                fontSize = 16.sp,
+                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
+                color = when {
+                    isSelected -> Color.White
+                    isToday -> Primary
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
+                modifier = Modifier.align(Alignment.Center)
+            )
+            
+            // Badge with class count in top-right corner
+            if (classCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error)
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = classCount.toString(),
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onError,
+                        textAlign = TextAlign.Center
                     )
                 }
             }

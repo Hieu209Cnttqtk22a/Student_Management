@@ -29,6 +29,7 @@ class ClassDetailViewModel @Inject constructor(
     private val classRepository: ClassRepository,
     private val studentRepository: StudentRepository,
     private val dailyRecordRepository: com.studentmanagement.app.data.repository.DailyRecordRepository,
+    private val reminderService: com.studentmanagement.app.service.ReminderService,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
@@ -418,6 +419,37 @@ class ClassDetailViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _uiState.value = ClassDetailUiState.Error(e.message ?: "Failed to update student")
+            }
+        }
+    }
+    
+    /**
+     * Toggle reminder for the class.
+     * Requirement 10.2: Quick toggle for enable/disable
+     * 
+     * @param classId The class ID
+     * @param enabled Whether to enable or disable reminders
+     */
+    fun toggleReminder(classId: Long, enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                val classEntity = classRepository.getClassById(classId)
+                if (classEntity != null) {
+                    val updatedClass = classEntity.copy(reminderEnabled = enabled)
+                    classRepository.updateClass(updatedClass)
+                    
+                    // Schedule or cancel reminders based on the new state
+                    if (enabled) {
+                        reminderService.scheduleRemindersForClass(updatedClass)
+                    } else {
+                        reminderService.cancelRemindersForClass(classId)
+                    }
+                    
+                    // Reload class detail to update UI
+                    loadClassDetail(classId)
+                }
+            } catch (e: Exception) {
+                _uiState.value = ClassDetailUiState.Error(e.message ?: "Failed to toggle reminder")
             }
         }
     }

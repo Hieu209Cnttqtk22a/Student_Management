@@ -30,14 +30,19 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -217,36 +222,49 @@ fun ClassDetailScreen(
                     }
                 }
                 
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-                        ) {
-                            // Clear focus when clicking outside the grid
-                            focusManager.clearFocus()
-                        }
                 ) {
-                    StudentGridView(
-                        classId = classId,
-                        students = displayStudents,
-                        scheduledDates = state.scheduledDates,
-                        dailyRecords = dailyRecords,
-                        filterState = filterState,
-                        viewModel = viewModel,
-                        onStudentClick = { studentId, dateString ->
-                            navController.navigate("student/$studentId/daily/edit?classId=$classId&date=$dateString")
-                        },
-                        onStudentDetailClick = { studentId ->
-                            navController.navigate("student/$studentId/history")
-                        },
-                        onRefresh = {
-                            viewModel.refreshDailyRecords(classId)
-                        },
-                        modifier = Modifier.fillMaxSize()
+                    // Reminder indicator section (Requirements 10.1, 10.2)
+                    ReminderIndicatorCard(
+                        classEntity = state.classEntity,
+                        onToggleReminder = { enabled ->
+                            viewModel.toggleReminder(classId, enabled)
+                        }
                     )
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                            ) {
+                                // Clear focus when clicking outside the grid
+                                focusManager.clearFocus()
+                            }
+                    ) {
+                        StudentGridView(
+                            classId = classId,
+                            students = displayStudents,
+                            scheduledDates = state.scheduledDates,
+                            dailyRecords = dailyRecords,
+                            filterState = filterState,
+                            viewModel = viewModel,
+                            onStudentClick = { studentId, dateString ->
+                                navController.navigate("student/$studentId/daily/edit?classId=$classId&date=$dateString")
+                            },
+                            onStudentDetailClick = { studentId ->
+                                navController.navigate("student/$studentId/history")
+                            },
+                            onRefresh = {
+                                viewModel.refreshDailyRecords(classId)
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
@@ -883,6 +901,92 @@ fun GridCell(
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+/**
+ * Reminder indicator card showing reminder status and quick toggle.
+ * Requirements 10.1, 10.2: Display reminder status and allow quick enable/disable
+ */
+@Composable
+fun ReminderIndicatorCard(
+    classEntity: com.studentmanagement.app.data.entity.ClassEntity,
+    onToggleReminder: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (classEntity.reminderEnabled) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = if (classEntity.reminderEnabled) {
+                        Icons.Default.Notifications
+                    } else {
+                        Icons.Default.NotificationsOff
+                    },
+                    contentDescription = if (classEntity.reminderEnabled) {
+                        "Nhắc nhở đã bật"
+                    } else {
+                        "Nhắc nhở đã tắt"
+                    },
+                    tint = if (classEntity.reminderEnabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(20.dp)
+                )
+                
+                Column {
+                    Text(
+                        text = if (classEntity.reminderEnabled) {
+                            "Nhắc nhở đã bật"
+                        } else {
+                            "Nhắc nhở đã tắt"
+                        },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (classEntity.reminderEnabled) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                    
+                    if (classEntity.reminderEnabled) {
+                        Text(
+                            text = "Nhắc trước ${classEntity.reminderLeadTimeMinutes} phút",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+            
+            Switch(
+                checked = classEntity.reminderEnabled,
+                onCheckedChange = onToggleReminder
             )
         }
     }

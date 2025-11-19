@@ -160,7 +160,31 @@ fun CalendarScreen(
                     )
                 }
                 CalendarPeriod.MONTH -> {
-                    val monthClassesMap = viewModel.getClassesForMonth(uiState.currentYearMonth)
+                    // Calculate classes for each day in the month
+                    val monthClassesMap = mutableMapOf<Int, List<com.studentmanagement.app.data.entity.ClassEntity>>()
+                    val daysInMonth = uiState.currentYearMonth.lengthOfMonth()
+                    
+                    for (day in 1..daysInMonth) {
+                        val date = LocalDate.of(uiState.currentYearMonth.year, uiState.currentYearMonth.month, day)
+                        val dayOfWeek = date.dayOfWeek.value // 1=Mon, 7=Sun
+                        // Convert to UI format
+                        val dayOfWeekUI = when (dayOfWeek) {
+                            1 -> 2; 2 -> 3; 3 -> 4; 4 -> 5; 5 -> 6; 6 -> 7; 7 -> 1
+                            else -> dayOfWeek
+                        }
+                        
+                        val classes = uiState.allClasses.filter { classEntity ->
+                            val scheduledDays = parseScheduledDays(classEntity.scheduleDaysOfWeek)
+                            val isScheduledDay = scheduledDays.contains(dayOfWeekUI)
+                            val isWithinDuration = isDateWithinClassDuration(date, classEntity)
+                            isScheduledDay && isWithinDuration
+                        }
+                        
+                        if (classes.isNotEmpty()) {
+                            monthClassesMap[day] = classes
+                        }
+                    }
+                    
                     MonthCalendarView(
                         yearMonth = uiState.currentYearMonth,
                         selectedDate = uiState.selectedDate,

@@ -230,6 +230,7 @@ fun ClassListScreen(
                                 subject = classEntity.subject ?: "",
                                 studentCount = state.studentCounts[classEntity.id] ?: 0,
                                 nextSessionDate = calculateNextSessionDate(classEntity),
+                                reminderEnabled = classEntity.reminderEnabled,
                                 onEditClick = { navController.navigate("class/${classEntity.id}/edit") },
                                 onDetailClick = { navController.navigate("class/${classEntity.id}/detail") }
                             )

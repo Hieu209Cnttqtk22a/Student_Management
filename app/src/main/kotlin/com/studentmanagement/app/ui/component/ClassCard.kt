@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -42,6 +43,7 @@ fun ClassCard(
     subject: String,
     studentCount: Int,
     nextSessionDate: String,
+    reminderEnabled: Boolean = false,
     onEditClick: () -> Unit,
     onDetailClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -69,14 +71,27 @@ fun ClassCard(
                         brush = Brush.linearGradient(
                             colors = listOf(Primary, PrimaryLight)
                         )
-                    ),
-                contentAlignment = Alignment.Center
+                    )
             ) {
+                // Reminder indicator icon (Requirement 10.3)
+                if (reminderEnabled) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Nhắc nhở đã bật",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .size(20.dp)
+                    )
+                }
+                
                 Text(
                     text = className,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.Center)
                 )
             }
 

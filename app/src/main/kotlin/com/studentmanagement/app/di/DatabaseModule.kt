@@ -8,6 +8,7 @@ import com.studentmanagement.app.data.dao.DailyRecordDao
 import com.studentmanagement.app.data.dao.TagDao
 import com.studentmanagement.app.data.dao.DailyRecordTagDao
 import com.studentmanagement.app.data.dao.AttachmentDao
+import com.studentmanagement.app.data.dao.ReminderDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -54,5 +55,10 @@ object DatabaseModule {
     @Provides
     fun provideAttachmentDao(database: StudentManagementDatabase): AttachmentDao {
         return database.attachmentDao()
+    }
+
+    @Provides
+    fun provideReminderDao(database: StudentManagementDatabase): ReminderDao {
+        return database.reminderDao()
     }
 }

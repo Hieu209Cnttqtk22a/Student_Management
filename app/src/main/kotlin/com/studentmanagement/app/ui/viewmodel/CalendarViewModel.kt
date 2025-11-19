@@ -201,11 +201,35 @@ class CalendarViewModel @Inject constructor(
         val daysInMonth = yearMonth.lengthOfMonth()
         val result = mutableMapOf<Int, List<ClassEntity>>()
         
+        Log.d("CalendarViewModel", "getClassesForMonth: yearMonth=$yearMonth, allClasses.size=${allClasses.size}")
+        
         for (day in 1..daysInMonth) {
             val date = LocalDate.of(yearMonth.year, yearMonth.month, day)
             val classes = getClassesForDate(date, allClasses)
             if (classes.isNotEmpty()) {
                 result[day] = classes
+                Log.d("CalendarViewModel", "Day $day has ${classes.size} classes: ${classes.map { it.name }}")
+            }
+        }
+        
+        Log.d("CalendarViewModel", "getClassesForMonth result: ${result.keys}")
+        return result
+    }
+    
+    /**
+     * Get class count for each date in the month
+     * Requirement 11.4: Calculate class count based on schedule configuration
+     */
+    fun getClassCountsForMonth(yearMonth: YearMonth): Map<Int, Int> {
+        val allClasses = _uiState.value.allClasses
+        val daysInMonth = yearMonth.lengthOfMonth()
+        val result = mutableMapOf<Int, Int>()
+        
+        for (day in 1..daysInMonth) {
+            val date = LocalDate.of(yearMonth.year, yearMonth.month, day)
+            val classes = getClassesForDate(date, allClasses)
+            if (classes.isNotEmpty()) {
+                result[day] = classes.size
             }
         }
         

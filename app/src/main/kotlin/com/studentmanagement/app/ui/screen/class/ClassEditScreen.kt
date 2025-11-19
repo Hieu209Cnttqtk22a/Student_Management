@@ -28,12 +28,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -75,6 +77,10 @@ fun ClassEditScreen(
     val repeatInterval = remember { mutableStateOf("1") }
     val repeatUnit = remember { mutableStateOf("WEEK") }
     val showDeleteDialog = remember { mutableStateOf(false) }
+    
+    // Reminder settings state (Requirement 6.1, 6.2, 6.5)
+    val reminderEnabled = remember { mutableStateOf(false) }
+    val reminderLeadTimeMinutes = remember { mutableStateOf(30) }
 
     LaunchedEffect(classId) {
         viewModel.loadClass(classId)
@@ -119,6 +125,10 @@ fun ClassEditScreen(
             
             repeatInterval.value = classEntity.repeatInterval.toString()
             repeatUnit.value = classEntity.repeatUnit
+            
+            // Load reminder settings
+            reminderEnabled.value = classEntity.reminderEnabled
+            reminderLeadTimeMinutes.value = classEntity.reminderLeadTimeMinutes
         }
     }
 
@@ -281,6 +291,86 @@ fun ClassEditScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
 
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Reminder Settings Section (Requirements 6.1, 6.2, 6.5)
+                    Text(
+                        "Nhắc nhở lớp học",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Enable/disable toggle (Requirement 6.1, 6.4)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Bật nhắc nhở",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Switch(
+                            checked = reminderEnabled.value,
+                            onCheckedChange = { reminderEnabled.value = it }
+                        )
+                    }
+
+                    // Lead time selection (Requirement 6.2, 6.5)
+                    if (reminderEnabled.value) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            "Nhắc trước giờ học:",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Quick options
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(15, 30, 60).forEach { minutes ->
+                                FilterChip(
+                                    selected = reminderLeadTimeMinutes.value == minutes,
+                                    onClick = { reminderLeadTimeMinutes.value = minutes },
+                                    label = { Text("$minutes phút") }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Custom input
+                        OutlinedTextField(
+                            value = reminderLeadTimeMinutes.value.toString(),
+                            onValueChange = { value ->
+                                value.toIntOrNull()?.let { 
+                                    if (it > 0) {
+                                        reminderLeadTimeMinutes.value = it
+                                    }
+                                }
+                            },
+                            label = { Text("Tùy chỉnh (phút)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(32.dp))
 
                     Row(
@@ -325,7 +415,9 @@ fun ClassEditScreen(
                                         scheduleDays = scheduleDaysJson,
                                         startTime = startTimeInMinutes,
                                         repeatInterval = interval,
-                                        repeatUnit = repeatUnit.value
+                                        repeatUnit = repeatUnit.value,
+                                        reminderEnabled = reminderEnabled.value,
+                                        reminderLeadTimeMinutes = reminderLeadTimeMinutes.value
                                     )
                                     
                                     // Set reload trigger to force ClassDetailScreen to reload

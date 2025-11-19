@@ -62,12 +62,19 @@ fun StudentImportScreen(
     val importProgress by viewModel.importProgress.collectAsState()
     val importSummary by viewModel.importSummary.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val isParsing by viewModel.isParsing.collectAsState()
+    
+    // Track last selected URI for retry functionality (Requirement 12.4)
+    var lastSelectedUri by remember { mutableStateOf<Uri?>(null) }
     
     // Requirement 1.1: File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let { viewModel.selectFile(it) }
+        uri?.let { 
+            lastSelectedUri = it
+            viewModel.selectFile(it)
+        }
     }
     
     Scaffold(
@@ -97,7 +104,7 @@ fun StudentImportScreen(
                 .padding(16.dp)
         ) {
             // Requirement 1.1: File selection button
-            if (parseResult == null && importSummary == null) {
+            if (parseResult == null && importSummary == null && !isParsing) {
                 Button(
                     onClick = { 
                         filePickerLauncher.launch("*/*") // Accept all file types, will validate in parser
@@ -117,7 +124,23 @@ fun StudentImportScreen(
                 )
             }
             
-            // Requirement 4.1: Error message display
+            // Requirement 12.4: Show loading indicator during file parsing
+            if (isParsing) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Parsing file...",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+            
+            // Requirement 4.1, 12.4: Error message display with retry option
             errorMessage?.let { error ->
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(
@@ -126,11 +149,43 @@ fun StudentImportScreen(
                         containerColor = MaterialTheme.colorScheme.errorContainer
                     )
                 ) {
-                    Text(
-                        text = error,
-                        modifier = Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        
+                        // Requirement 12.4: Provide retry option
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { 
+                                    viewModel.clearError()
+                                    viewModel.cancelImport()
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Dismiss")
+                            }
+                            
+                            Button(
+                                onClick = { 
+                                    viewModel.clearError()
+                                    lastSelectedUri?.let { uri ->
+                                        viewModel.selectFile(uri)
+                                    } ?: run {
+                                        filePickerLauncher.launch("*/*")
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Retry")
+                            }
+                        }
+                    }
                 }
             }
             

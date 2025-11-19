@@ -23,12 +23,24 @@ class FileParserService @Inject constructor(
     /**
      * Parse file from URI, automatically detecting file type
      * Supports .csv, .xls, and .xlsx files
-     * Requirements: 1.2, 1.3, 4.1
+     * Requirements: 1.2, 1.3, 4.1, 12.4
      */
     suspend fun parseFile(uri: Uri): ParseResult = withContext(Dispatchers.IO) {
-        // Requirement 4.1: Validate file size before parsing
+        // Requirement 12.4: Validate file exists and is accessible
+        try {
+            context.contentResolver.openInputStream(uri)?.close()
+                ?: throw IllegalArgumentException("Cannot access file. Please check file permissions.")
+        } catch (e: SecurityException) {
+            throw IllegalArgumentException("Permission denied. Please grant file access permission.")
+        } catch (e: IllegalArgumentException) {
+            throw e
+        } catch (e: Exception) {
+            throw IllegalArgumentException("Cannot access file: ${e.message}")
+        }
+        
+        // Requirement 4.1, 12.4: Validate file size before parsing
         if (!validateFileSize(uri)) {
-            throw IllegalArgumentException("File is too large. Maximum file size is 10MB.")
+            throw IllegalArgumentException("File is too large. Maximum file size is 10MB. Please use a smaller file.")
         }
         
         val fileName = getFileName(uri)
@@ -46,7 +58,8 @@ class FileParserService @Inject constructor(
                         try {
                             excelParser.parseFile(uri)
                         } catch (e2: Exception) {
-                            throw IllegalArgumentException("Unsupported file format. Please use .csv, .xls, or .xlsx files.")
+                            // Requirement 12.4: User-friendly error message
+                            throw IllegalArgumentException("Unsupported file format '$fileExtension'. Please use .csv, .xls, or .xlsx files.")
                         }
                     }
                 }
@@ -54,9 +67,12 @@ class FileParserService @Inject constructor(
         } catch (e: IllegalArgumentException) {
             // Re-throw our custom exceptions with clear messages
             throw e
+        } catch (e: OutOfMemoryError) {
+            // Requirement 12.4: Handle memory errors
+            throw IllegalArgumentException("File is too large to process. Please use a smaller file or split the data.")
         } catch (e: Exception) {
-            // Requirement 4.1: Catch unexpected errors
-            throw IllegalArgumentException("Failed to parse file: ${e.message}", e)
+            // Requirement 4.1, 12.4: Catch unexpected errors with user-friendly message
+            throw IllegalArgumentException("Failed to parse file. Please check the file format and try again. Error: ${e.message}", e)
         }
     }
     

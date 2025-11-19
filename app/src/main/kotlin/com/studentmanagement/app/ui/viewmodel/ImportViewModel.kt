@@ -38,13 +38,19 @@ class ImportViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     
+    // Requirement 12.4: Track parsing state
+    private val _isParsing = MutableStateFlow(false)
+    val isParsing: StateFlow<Boolean> = _isParsing.asStateFlow()
+    
     /**
      * Select and parse a file from the given URI.
-     * Requirement 1.1, 1.2, 1.3, 4.1: File selection and parsing with error handling
+     * Requirement 1.1, 1.2, 1.3, 4.1, 12.4: File selection and parsing with error handling and loading state
      */
     fun selectFile(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // Requirement 12.4: Set loading state
+                _isParsing.value = true
                 _errorMessage.value = null
                 _parseResult.value = null
                 
@@ -54,6 +60,7 @@ class ImportViewModel @Inject constructor(
                 // Validate that we have data
                 if (result.rows.isEmpty()) {
                     _errorMessage.value = "File contains no data rows"
+                    _isParsing.value = false
                     return@launch
                 }
                 
@@ -67,14 +74,17 @@ class ImportViewModel @Inject constructor(
                 }
                 
                 _parseResult.value = result
+                _isParsing.value = false
             } catch (e: IllegalArgumentException) {
-                // Requirement 4.1: Display clear error messages
+                // Requirement 4.1, 12.4: Display clear error messages
                 _errorMessage.value = e.message ?: "Failed to read file"
                 _parseResult.value = null
+                _isParsing.value = false
             } catch (e: Exception) {
-                // Requirement 4.1: Handle unexpected errors
+                // Requirement 4.1, 12.4: Handle unexpected errors
                 _errorMessage.value = "Unexpected error: ${e.message}"
                 _parseResult.value = null
+                _isParsing.value = false
             }
         }
     }
@@ -178,10 +188,12 @@ class ImportViewModel @Inject constructor(
         _importProgress.value = ImportProgress(0, 0, false)
         _importSummary.value = null
         _errorMessage.value = null
+        _isParsing.value = false
     }
     
     /**
      * Clear error message.
+     * Requirement 12.4: Allow dismissing errors
      */
     fun clearError() {
         _errorMessage.value = null

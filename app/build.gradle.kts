@@ -122,6 +122,11 @@ dependencies {
     implementation("org.apache.poi:poi:5.2.3")
     implementation("org.apache.poi:poi-ooxml:5.2.3")
     
+    // WorkManager for reliable background tasks (Requirement 12.3)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.hilt:hilt-work:1.1.0")
+    ksp("androidx.hilt:hilt-compiler:1.1.0")
+    
     // MultiDex support
     implementation("androidx.multidex:multidex:2.0.1")
 
