@@ -27,4 +27,13 @@ interface StudentDao {
 
     @Query("SELECT COUNT(*) FROM students WHERE classId = :classId")
     fun getStudentCountByClass(classId: Long): Flow<Int>
+
+    @Insert
+    suspend fun insertAll(students: List<StudentEntity>): List<Long>
+
+    @Query("SELECT * FROM students WHERE classId = :classId")
+    suspend fun getStudentsByClassSync(classId: Long): List<StudentEntity>
+
+    @Query("SELECT COUNT(*) FROM students WHERE classId = :classId AND LOWER(TRIM(name)) = LOWER(TRIM(:name))")
+    suspend fun countStudentByNameInClass(classId: Long, name: String): Int
 }

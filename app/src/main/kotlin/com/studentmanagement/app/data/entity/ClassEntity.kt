@@ -14,5 +14,7 @@ data class ClassEntity(
     val startTimeMinutes: Int? = null,
     val durationMinutes: Int? = null,
     val repeatInterval: Int = 1, // Số lần lặp (1, 2, 3...)
-    val repeatUnit: String = "WEEK" // WEEK, MONTH, YEAR
+    val repeatUnit: String = "WEEK", // WEEK, MONTH, YEAR
+    val reminderEnabled: Boolean = false,
+    val reminderLeadTimeMinutes: Int = 30 // Default 30 minutes
 )

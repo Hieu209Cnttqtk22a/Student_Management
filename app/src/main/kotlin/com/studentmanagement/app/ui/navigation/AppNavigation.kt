@@ -28,6 +28,7 @@ import com.studentmanagement.app.ui.screen.student.StudentCreateScreen
 import com.studentmanagement.app.ui.screen.student.StudentDailyEditScreen
 import com.studentmanagement.app.ui.screen.student.StudentDailyHistoryListScreen
 import com.studentmanagement.app.ui.screen.student.StudentDailyDetailScreen
+import com.studentmanagement.app.ui.screen.student.StudentImportScreen
 import com.studentmanagement.app.ui.viewmodel.ClassListViewModel
 import com.studentmanagement.app.data.entity.ClassEntity
 
@@ -135,6 +136,16 @@ fun AppNavigation() {
                     onSave = { name, nickname, phone, note ->
                         // TODO: Save to database
                     }
+                )
+            }
+            composable(
+                route = "class/{classId}/import",
+                arguments = listOf(navArgument("classId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val classId = backStackEntry.arguments?.getLong("classId") ?: 0L
+                StudentImportScreen(
+                    navController = navController,
+                    classId = classId
                 )
             }
             composable(

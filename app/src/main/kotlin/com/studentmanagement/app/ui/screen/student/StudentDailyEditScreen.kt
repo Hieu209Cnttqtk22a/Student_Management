@@ -38,10 +38,12 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -163,10 +165,15 @@ fun StudentDailyEditScreen(
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = score,
-                onValueChange = { viewModel.setScore(it) },
+                onValueChange = { 
+                    // Convert comma to dot for decimal input
+                    val normalizedValue = it.replace(',', '.')
+                    viewModel.setScore(normalizedValue)
+                },
                 label = { Text("Nhập điểm (tùy chọn)") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
             )
 
             Spacer(modifier = Modifier.height(16.dp))

@@ -21,7 +21,20 @@ class DailyRecordRepository @Inject constructor(
         attachments: List<String>
     ): Long {
         val recordId = if (dailyRecord.id == 0L) {
-            dailyRecordDao.insert(dailyRecord)
+            // Check if a record already exists for this student/class/date
+            val existingRecord = dailyRecordDao.getByStudentAndDate(dailyRecord.studentId, dailyRecord.date)
+            if (existingRecord != null) {
+                // Update existing record instead of creating duplicate
+                val updatedRecord = existingRecord.copy(
+                    score = dailyRecord.score,
+                    note = dailyRecord.note,
+                    updatedAt = System.currentTimeMillis()
+                )
+                dailyRecordDao.update(updatedRecord)
+                existingRecord.id
+            } else {
+                dailyRecordDao.insert(dailyRecord)
+            }
         } else {
             dailyRecordDao.update(dailyRecord)
             dailyRecord.id

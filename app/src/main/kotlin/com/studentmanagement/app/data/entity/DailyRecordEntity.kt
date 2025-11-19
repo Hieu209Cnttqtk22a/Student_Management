@@ -15,7 +15,12 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("studentId"), Index("classId"), Index("date")]
+    indices = [
+        Index("studentId"), 
+        Index("classId"), 
+        Index("date"),
+        Index(value = ["studentId", "classId", "date"], unique = true)
+    ]
 )
 data class DailyRecordEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
